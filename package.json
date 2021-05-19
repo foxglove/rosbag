@@ -6,7 +6,8 @@
   "dependencies": {
     "buffer": "6.0.3",
     "heap": "0.2.6",
-    "int53": "1.0.0"
+    "int53": "1.0.0",
+    "web-encoding": "1.1.5"
   },
   "engines": {
     "node": ">=12.0.0"

@@ -6,6 +6,8 @@
 
 import { Time, RosMsgDefinition, NamedRosMsgDefinition } from "./types";
 
+import { TextEncoder } from "web-encoding";
+
 // write a Time object to a DataView.
 function writeTime(time: Time, view: DataView, offset: number): void {
   view.setUint32(time.sec, offset, true);
