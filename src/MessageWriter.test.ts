@@ -4,10 +4,11 @@
 // found in the LICENSE file in the root directory of this source tree.
 // You may not use this file except in compliance with the License.
 
+import { TextEncoder } from "web-encoding";
+
 import { MessageReader } from "./MessageReader";
 import { MessageWriter } from "./MessageWriter";
 import { parseMessageDefinition } from "./parseMessageDefinition";
-import { TextEncoder } from "web-encoding";
 
 const getStringBytes = (str: string): Uint8Array => {
   const textData = new TextEncoder().encode(str);
