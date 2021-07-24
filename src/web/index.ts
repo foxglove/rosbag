@@ -11,10 +11,10 @@ import { Buffer } from "buffer";
 
 import Bag from "../Bag";
 import BagReader from "../BagReader";
-import { Callback } from "../types";
+import { Filelike } from "../types";
 
 // browser reader for Blob|File objects
-export class Reader {
+export class Reader implements Filelike {
   _blob: Blob;
   _size: number;
 
@@ -24,20 +24,21 @@ export class Reader {
   }
 
   // read length (bytes) starting from offset (bytes)
-  // callback(err, buffer)
-  read(offset: number, length: number, cb: Callback<Buffer>): void {
-    const reader = new FileReader();
-    reader.onload = function () {
-      reader.onload = null;
-      reader.onerror = null;
-      cb(null, Buffer.from(reader.result as ArrayBuffer));
-    };
-    reader.onerror = function () {
-      reader.onload = null;
-      reader.onerror = null;
-      cb(reader.error ?? new Error("Unknown FileReader error"));
-    };
-    reader.readAsArrayBuffer(this._blob.slice(offset, offset + length));
+  async read(offset: number, length: number): Promise<Buffer> {
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = function () {
+        reader.onload = null;
+        reader.onerror = null;
+        resolve(Buffer.from(reader.result as ArrayBuffer));
+      };
+      reader.onerror = function () {
+        reader.onload = null;
+        reader.onerror = null;
+        reject(reader.error ?? new Error("Unknown FileReader error"));
+      };
+      reader.readAsArrayBuffer(this._blob.slice(offset, offset + length));
+    });
   }
 
   // return the size of the file

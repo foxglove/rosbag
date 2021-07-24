@@ -15,17 +15,12 @@ describe("browser reader", () => {
   it("works in node", async () => {
     const buffer = new Blob([Uint8Array.from([0x00, 0x01, 0x02, 0x03, 0x04])]);
     const reader = new Reader(buffer);
-    await new Promise<void>((resolve) => {
-      reader.read(0, 2, (err?: Error | null, res?: unknown) => {
-        expect(err).toBeNull();
-        expect(res).toHaveLength(2);
-        expect(res instanceof Buffer).toBe(true);
-        const buff = res as Buffer;
-        expect(buff[0]).toBe(0x00);
-        expect(buff[1]).toBe(0x01);
-        resolve();
-      });
-    });
+    const res = await reader.read(0, 2);
+    expect(res).toHaveLength(2);
+    expect(res instanceof Buffer).toBe(true);
+    const buff = res;
+    expect(buff[0]).toBe(0x00);
+    expect(buff[1]).toBe(0x01);
   });
 
   it("propagates error for truncated bag", async () => {
@@ -37,13 +32,10 @@ describe("browser reader", () => {
   it("allows multiple read operations at once", async () => {
     const buffer = new Blob([Uint8Array.from([0x00, 0x01, 0x02, 0x03, 0x04])]);
     const reader = new Reader(buffer);
-    const read1 = new Promise<void>((resolve, reject) =>
-      reader.read(0, 2, (err?: Error | null) => (err != null ? reject(err) : resolve()))
-    );
-    const read2 = new Promise<void>((resolve, reject) =>
-      reader.read(0, 2, (err?: Error | null) => (err != null ? reject(err) : resolve()))
-    );
-    await expect(Promise.all([read1, read2])).resolves.toBeDefined();
+    await expect(Promise.all([reader.read(0, 2), reader.read(0, 2)])).resolves.toEqual([
+      Buffer.from([0, 1]),
+      Buffer.from([0, 1]),
+    ]);
   });
 
   it("reports browser FileReader errors", async () => {
@@ -67,13 +59,7 @@ describe("browser reader", () => {
       }
     };
 
-    await new Promise<void>((resolve) => {
-      reader.read(0, 2, (err?: Error | null) => {
-        global.FileReader = actualFileReader;
-        expect(err instanceof Error).toBe(true);
-        expect(err!.message).toBe("fake error");
-        resolve();
-      });
-    });
+    await expect(reader.read(0, 2)).rejects.toThrow("fake error");
+    global.FileReader = actualFileReader;
   });
 });
