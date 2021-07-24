@@ -1,4 +1,6 @@
 module.exports = {
-  preset: "ts-jest",
-  modulePathIgnorePatterns: ["<rootDir>/dist/"],
+  testMatch: ["<rootDir>/src/**/*.test.ts"],
+  transform: {
+    "\\.ts$": "esbuild-jest",
+  },
 };
