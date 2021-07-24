@@ -5,7 +5,6 @@
 // found in the LICENSE file in the root directory of this source tree.
 // You may not use this file except in compliance with the License.
 
-import assert from "assert";
 import * as fs from "fs";
 
 import Bag, { Reader, extractFields, extractTime } from ".";
@@ -69,9 +68,8 @@ describe("browser reader", () => {
     await new Promise<void>((resolve) => {
       reader.read(0, 2, (err?: Error | null) => {
         global.FileReader = actualFileReader;
-        assert(err);
         expect(err instanceof Error).toBe(true);
-        expect(err.message).toBe("fake error");
+        expect(err!.message).toBe("fake error");
         resolve();
       });
     });
