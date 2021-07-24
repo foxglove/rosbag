@@ -6,26 +6,27 @@
     "type": "git",
     "url": "https://github.com/foxglove/rosbag.git"
   },
-  "dependencies": {
-    "@foxglove/rosmsg": "1.0.0",
-    "@foxglove/rosmsg-serialization": "1.0.1",
-    "@foxglove/rostime": "1.1.0",
-    "buffer": "6.0.3",
-    "heap": "0.2.6"
-  },
-  "main": "dist/node/index.js",
-  "browser": "dist/web/index.js",
+  "main": "dist/cjs/node/index.js",
+  "module": "dist/esm/node/index.js",
+  "browser": "dist/esm/web/index.js",
   "files": [
     "dist",
     "src"
   ],
   "scripts": {
     "clean": "rimraf dist *.tsbuildinfo",
-    "prepack": "tsc -b tsconfig.dist.json",
-    "build": "tsc -b tsconfig.dist.json",
+    "prepack": "tsc -b tsconfig.json tsconfig.cjs.json",
+    "build": "tsc -b tsconfig.json tsconfig.cjs.json",
     "lint": "eslint --report-unused-disable-directives --fix .",
     "lint:ci": "eslint --report-unused-disable-directives .",
     "test": "jest"
+  },
+  "dependencies": {
+    "@foxglove/rosmsg": "1.0.0",
+    "@foxglove/rosmsg-serialization": "1.0.1",
+    "@foxglove/rostime": "1.1.0",
+    "buffer": "6.0.3",
+    "heap": "0.2.6"
   },
   "devDependencies": {
     "@foxglove/eslint-plugin": "0.13.0",
