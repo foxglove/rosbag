@@ -13,14 +13,9 @@ jobs:
 
       - uses: actions/setup-node@v2
         with:
-          node-version: 16.x
+          node-version: 16
           registry-url: https://registry.npmjs.org
-
-      - uses: actions/cache@v2
-        with:
-          path: ~/.cache/yarn
-          key: v1-${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: v1-${{ runner.os }}-yarn-
+          cache: yarn
 
       - run: yarn install --frozen-lockfile
 
