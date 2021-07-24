@@ -1,6 +1,6 @@
-# rosbag &nbsp; [![npm version](https://img.shields.io/npm/v/rosbag.svg?style=flat)](https://www.npmjs.com/package/rosbag)
+# @foxglove/rosbag &nbsp; [![npm version](https://img.shields.io/npm/v/rosbag.svg?style=flat)](https://www.npmjs.com/package/@foxglove/rosbag)
 
-`rosbag` is a node.js & browser compatible module for reading [rosbag](http://wiki.ros.org/rosbag) binary data files.
+`@foxglove/rosbag` is a node.js & browser compatible module for reading [rosbag](http://wiki.ros.org/rosbag) binary data files.
 
 ## Installation
 
