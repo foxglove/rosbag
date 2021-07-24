@@ -1,4 +1,3 @@
-// -*- jsonc -*-
 {
   "extends": "@foxglove/tsconfig/base",
   "include": ["./src/**/*"],

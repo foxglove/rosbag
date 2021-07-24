@@ -1,4 +1,3 @@
-// -*- jsonc -*-
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
