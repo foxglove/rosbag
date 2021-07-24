@@ -1,9 +1,9 @@
 {
   "extends": "@foxglove/tsconfig/base",
+  "include": ["src/**/*"],
   "compilerOptions": {
+    "rootDir": "./src",
     "outDir": "./dist",
-    "rootDir": "src",
-    "target": "es2019",
     "baseUrl": ".",
     "module": "commonjs",
     "moduleResolution": "node",
@@ -19,7 +19,5 @@
     "allowUnreachableCode": false,
     "strict": true,
     "typeRoots": ["./node_modules/@types", "./typings"]
-  },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules"]
+  }
 }
