@@ -275,7 +275,7 @@ const createParser = (types: RosMsgDefinition[], freeze: boolean) => {
     // eslint-disable-next-line no-eval, @typescript-eslint/no-unsafe-assignment
     read = eval(`(function buildReader() { ${js} })()`);
   } catch (e) {
-    console.error("error building parser:", js); // eslint-disable-line no-console
+    console.error("error building parser:", js);
     throw e;
   }
 
@@ -294,7 +294,6 @@ export class MessageReader {
   constructor(definitions: RosMsgDefinition[], options: { freeze?: boolean | null | undefined } = {}) {
     let parsedDefinitions = definitions;
     if (typeof parsedDefinitions === "string") {
-      // eslint-disable-next-line no-console
       console.warn(
         "Passing string message defintions to MessageReader is deprecated. Instead call `parseMessageDefinition` on it and pass in the resulting parsed message definition object."
       );

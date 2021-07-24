@@ -43,7 +43,6 @@ export default class Bag {
     this.connections = new Map<number, Connection>();
   }
 
-  // eslint-disable-next-line no-unused-vars
   static open = async (_file: File | string): Promise<Bag> => {
     throw new Error(
       "This method should have been overridden based on the environment. Make sure you are correctly importing the node or web version of Bag."

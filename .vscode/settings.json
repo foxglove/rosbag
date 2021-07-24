@@ -5,5 +5,8 @@
   "files.exclude": {
     "node_modules": true,
   },
+  "eslint.options": {
+    "reportUnusedDisableDirectives": true
+  },
   "javascript.validate.enable": false
 }

@@ -93,7 +93,6 @@ const buildType = (lines: { isJson: boolean; line: string }[]): RosMsgDefinition
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           value = JSON.parse(match.replace(/\s*#.*/g, ""));
         } catch (error) {
-          // eslint-disable-next-line no-console
           console.warn(`Error in this constant definition: ${line}`);
           throw error;
         }
@@ -105,7 +104,6 @@ const buildType = (lines: { isJson: boolean; line: string }[]): RosMsgDefinition
         (type.includes("int") && Number(value) > Number.MAX_SAFE_INTEGER) ||
         Number(value) < Number.MIN_SAFE_INTEGER
       ) {
-        // eslint-disable-next-line no-console
         console.warn(`Found integer constant outside safe integer range: ${line}`);
       }
       definitions.push({

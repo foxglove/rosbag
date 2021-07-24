@@ -283,14 +283,14 @@ function createWriterAndSizeCalculator(types: RosMsgDefinition[]): WriterAndSize
     // eslint-disable-next-line no-eval, @typescript-eslint/no-unsafe-assignment
     write = eval(`(function buildWriter() { ${writerJs} })()`);
   } catch (e) {
-    console.error("error building writer:", writerJs); // eslint-disable-line no-console
+    console.error("error building writer:", writerJs);
     throw e;
   }
   try {
     // eslint-disable-next-line no-eval, @typescript-eslint/no-unsafe-assignment
     calculateSize = eval(`(function buildSizeCalculator() { ${calculateSizeJs} })()`);
   } catch (e) {
-    console.error("error building size calculator:", calculateSizeJs); // eslint-disable-line no-console
+    console.error("error building size calculator:", calculateSizeJs);
     throw e;
   }
 
