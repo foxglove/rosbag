@@ -170,7 +170,7 @@ class StandardTypeReader {
 }
 
 const findTypeByName = (types: RosMsgDefinition[], name = ""): NamedRosMsgDefinition => {
-  let foundName = ""; // track name separately in a non-null variable to appease Flow
+  let foundName = "";
   const matches = types.filter((type) => {
     const typeName = type.name || "";
     // if the search is empty, return unnamed types

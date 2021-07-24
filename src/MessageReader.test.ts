@@ -44,28 +44,12 @@ describe("MessageReader", () => {
       });
     });
 
-    // Our tests are currently run in node v10 and our code is run in the browser. Node v10 does not support "ascii"
-    // encoding out of the box despite it being supported in the browser; later versions of node do support "ascii" out
-    // of the box.
-    // TODO: re-enable this test when pinning to node 14+.
-    /*
-    xit("parses long strings with TextDecoder available", () => {
-      // Remove TextDecoder
-      expect(typeof TextDecoder).toEqual("undefined");
-      // $FlowFixMe flow doesn't like util.TextDecoder
-      expect(() => new util.TextDecoder("ascii")).not.toThrow();
-      // $FlowFixMe flow doesn't like util.TextDecoder
-      global.TextDecoder = util.TextDecoder;
-
+    it("parses long strings with TextDecoder available", () => {
       const reader = new MessageReader(parseMessageDefinition("string name"));
       const string = new Array(5000).map(() => String.fromCharCode(Math.floor(Math.random() * 255))).join("");
       const buff = getStringBuffer(string);
       expect(reader.readMessage(buff)).toEqual({ name: string });
-
-      // Reset the TextDecoder
-      delete global.TextDecoder;
     });
-    */
 
     it("parses JSON", () => {
       const reader = new MessageReader(parseMessageDefinition("#pragma rosbag_parse_json\nstring dummy"));
