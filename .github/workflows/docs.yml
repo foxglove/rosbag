@@ -1,0 +1,33 @@
+name: Docs
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  all:
+    name: all
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-node@v2
+        with:
+          node-version: 16
+          registry-url: https://registry.npmjs.org
+          cache: yarn
+
+      - run: yarn install --frozen-lockfile
+      - run: yarn docs
+
+      - name: Publish Docs
+        run: |
+          set -x
+          git config user.name "foxbot"
+          git config user.email "contact@foxglove.dev"
+          git add docs
+          git status
+          git commit -m "Docs"
+          git subtree split --prefix docs --branch gh-pages
+          git push --force origin gh-pages:gh-pages
