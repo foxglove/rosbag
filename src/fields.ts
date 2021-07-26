@@ -11,42 +11,44 @@ import { Time } from "@foxglove/rostime";
 // pairs - the buffer is expected to have length prefixed utf8 strings
 // with a '=' separating the key and value
 const EQUALS_CHARCODE = "=".charCodeAt(0);
-export function extractFields(buffer: Buffer): { [key: string]: Buffer } {
+
+export function extractFields(buffer: Uint8Array): Record<string, Uint8Array> {
   if (buffer.length < 4) {
-    throw new Error("Header fields are truncated.");
+    throw new Error("fields are truncated.");
   }
 
-  let i = 0;
-  const fields: {
-    [key: string]: Buffer;
-  } = {};
+  const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  let offset = 0;
+  const fields: Record<string, Uint8Array> = {};
 
-  while (i < buffer.length) {
-    const length = buffer.readInt32LE(i);
-    i += 4;
+  while (offset < buffer.length) {
+    const length = view.getInt32(offset, true);
+    offset += 4;
 
-    if (i + length > buffer.length) {
+    if (offset + length > buffer.length) {
       throw new Error("Header fields are corrupt.");
     }
 
-    // Passing a number into "indexOf" explicitly to avoid Buffer polyfill
-    // slow path. See issue #87.
-    const field = buffer.slice(i, i + length);
+    // fixme - use subarray to avoid copy
+    const field = buffer.slice(offset, offset + length);
     const index = field.indexOf(EQUALS_CHARCODE);
     if (index === -1) {
       throw new Error("Header field is missing equals sign.");
     }
 
-    fields[field.slice(0, index).toString()] = field.slice(index + 1);
-    i += length;
+    const fieldName = new TextDecoder().decode(field.slice(0, index));
+    fields[fieldName] = field.slice(index + 1);
+    offset += length;
   }
 
   return fields;
 }
 
 // reads a Time object out of a buffer at the given offset
-export function extractTime(buffer: Buffer, offset: number): Time {
-  const sec = buffer.readUInt32LE(offset);
-  const nsec = buffer.readUInt32LE(offset + 4);
+// fixme - accept a dataview instead
+export function extractTime(buffer: Uint8Array, offset: number): Time {
+  const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  const sec = view.getUint32(offset, true);
+  const nsec = view.getUint32(offset + 4, true);
   return { sec, nsec };
 }

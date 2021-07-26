@@ -7,7 +7,6 @@
 
 /* eslint-disable filenames/match-exported */
 
-import { Buffer } from "buffer";
 import * as fs from "fs/promises";
 
 import Bag from "../Bag";
@@ -19,13 +18,13 @@ export class Reader implements Filelike {
   _filename: string;
   _file?: fs.FileHandle;
   _size: number;
-  _buffer: Buffer;
+  _buffer: Uint8Array;
 
   constructor(filename: string) {
     this._filename = filename;
     this._file = undefined;
     this._size = 0;
-    this._buffer = Buffer.allocUnsafe(0);
+    this._buffer = new Uint8Array(0);
   }
 
   // open a file for reading
@@ -40,13 +39,13 @@ export class Reader implements Filelike {
 
   // read length (bytes) starting from offset (bytes)
   // callback(err, buffer)
-  async read(offset: number, length: number): Promise<Buffer> {
+  async read(offset: number, length: number): Promise<Uint8Array> {
     if (this._file == null) {
       await this._open();
       return await this.read(offset, length);
     }
     if (length > this._buffer.byteLength) {
-      this._buffer = Buffer.alloc(length);
+      this._buffer = new Uint8Array(length);
     }
     const { bytesRead } = await this._file.read(this._buffer, 0, length, offset);
     if (bytesRead < length) {

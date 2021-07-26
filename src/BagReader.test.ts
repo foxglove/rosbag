@@ -84,7 +84,7 @@ describe("BagReader", () => {
       const filelike = new FakeHeaderFilelike();
       filelike.preamble = "#ROSBAG V1.0\n";
       const reader = new BagReader(filelike);
-      await expect(reader.readHeader()).rejects.toThrow();
+      await expect(reader.readHeader()).rejects.toThrow(new Error("Cannot identify bag format."));
     });
 
     it("parses header correctly with small int32 values", async () => {

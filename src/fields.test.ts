@@ -7,6 +7,10 @@
 
 import { extractFields } from "./fields";
 
+function stringToUint8(str: string): Uint8Array {
+  return new TextEncoder().encode(str);
+}
+
 describe("fields", () => {
   it("should extract fields from a buffer", () => {
     const buffer = Buffer.alloc(24);
@@ -15,8 +19,8 @@ describe("fields", () => {
     buffer.writeUInt32LE(9, 11);
     buffer.write("key=value", 15);
 
-    const result = extractFields(buffer);
-    const expected = { foo: Buffer.from("bar"), key: Buffer.from("value") };
+    const result = extractFields(Uint8Array.from([...buffer]));
+    const expected = { foo: stringToUint8("bar"), key: stringToUint8("value") };
     expect(result).toEqual(expected);
   });
 });

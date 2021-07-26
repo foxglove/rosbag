@@ -7,8 +7,6 @@
 
 /* eslint-disable filenames/match-exported */
 
-import { Buffer } from "buffer";
-
 import Bag from "../Bag";
 import BagReader from "../BagReader";
 import { Filelike } from "../types";
@@ -24,13 +22,13 @@ export class Reader implements Filelike {
   }
 
   // read length (bytes) starting from offset (bytes)
-  async read(offset: number, length: number): Promise<Buffer> {
+  async read(offset: number, length: number): Promise<Uint8Array> {
     return await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = function () {
         reader.onload = null;
         reader.onerror = null;
-        resolve(Buffer.from(reader.result as ArrayBuffer));
+        resolve(reader.result);
       };
       reader.onerror = function () {
         reader.onload = null;
