@@ -8,9 +8,9 @@
 /* eslint-disable jest/no-conditional-expect */
 
 import { compare, fromDate } from "@foxglove/rostime";
-// import compress from "compressjs";
+import compress from "compressjs";
 import fs from "fs";
-// import lz4 from "lz4js";
+import lz4 from "lz4js";
 
 import { ReadOptions } from "./Bag";
 import ReadResult from "./ReadResult";
@@ -211,8 +211,6 @@ describe("rosbag - high-level api", () => {
     expect(messages).toHaveLength(9);
   });
 
-  // fixme - unskip
-  /*
   describe("compression", () => {
     it("throws if compression scheme is not registered", async () => {
       const bag = await Bag.open(getFixture("example-bz2"));
@@ -223,9 +221,8 @@ describe("rosbag - high-level api", () => {
       const messages = await fullyReadBag("example-bz2", {
         topics: ["/turtle1/color_sensor"],
         decompress: {
-          bz2: (buffer: Buffer) => {
-            const arr = compress.Bzip2.decompressFile(buffer);
-            return Buffer.from(arr);
+          bz2: (buffer) => {
+            return compress.Bzip2.decompressFile(buffer);
           },
         },
       });
@@ -238,7 +235,7 @@ describe("rosbag - high-level api", () => {
       const messages = await fullyReadBag("example-lz4", {
         topics: ["/turtle1/color_sensor"],
         decompress: {
-          lz4: (buffer: Buffer) => Buffer.from(lz4.decompress(buffer)),
+          lz4: (buffer) => lz4.decompress(buffer),
         },
       });
       const topics = messages.map((msg) => msg.topic);
@@ -252,7 +249,7 @@ describe("rosbag - high-level api", () => {
         endTime: { sec: 1396293887, nsec: 846735850 },
         topics: ["/turtle1/color_sensor"],
         decompress: {
-          lz4: (buffer: Buffer, size: number) => {
+          lz4: (buffer, size) => {
             expect(size).toBe(743449);
             const buff = Buffer.from(lz4.decompress(buffer));
             expect(buff.byteLength).toBe(size);
@@ -262,5 +259,4 @@ describe("rosbag - high-level api", () => {
       });
     });
   });
-  */
 });
