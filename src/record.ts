@@ -10,13 +10,28 @@ import { Time } from "@foxglove/rostime";
 
 import { extractFields, extractTime } from "./fields";
 
+function readUint32(buff: Uint8Array): number {
+  const view = new DataView(buff.buffer, buff.byteOffset, buff.byteLength);
+  return view.getUint32(0, true);
+}
+
+function readInt32(buff: Uint8Array): number {
+  const view = new DataView(buff.buffer, buff.byteOffset, buff.byteLength);
+  return view.getInt32(0, true);
+}
+
+function readBigUInt64(buff: Uint8Array): number {
+  const view = new DataView(buff.buffer, buff.byteOffset, buff.byteLength);
+  return Number(view.getBigUint64(0, true));
+}
+
 export class Record {
   offset?: number;
   dataOffset?: number;
   end?: number;
   length?: number;
 
-  parseData(_buffer: Buffer): void {
+  parseData(_buffer: Uint8Array): void {
     /* no-op */
   }
 }
@@ -27,11 +42,11 @@ export class BagHeader extends Record {
   connectionCount: number;
   chunkCount: number;
 
-  constructor(fields: { [key: string]: Buffer }) {
+  constructor(fields: { [key: string]: Uint8Array }) {
     super();
-    this.indexPosition = Number(fields.index_pos!.readBigUInt64LE(0));
-    this.connectionCount = fields.conn_count!.readInt32LE(0);
-    this.chunkCount = fields.chunk_count!.readInt32LE(0);
+    this.indexPosition = readBigUInt64(fields.index_pos!);
+    this.connectionCount = readInt32(fields.conn_count!);
+    this.chunkCount = readInt32(fields.chunk_count!);
   }
 }
 
@@ -39,29 +54,29 @@ export class Chunk extends Record {
   static opcode = 5;
   compression: string;
   size: number;
-  data?: Buffer;
+  data?: Uint8Array;
 
-  constructor(fields: { [key: string]: Buffer }) {
+  constructor(fields: { [key: string]: Uint8Array }) {
     super();
-    this.compression = fields.compression!.toString();
-    this.size = fields.size!.readUInt32LE(0);
+    this.compression = new TextDecoder().decode(fields.compression);
+    this.size = readUint32(fields.size!);
   }
 
-  override parseData(buffer: Buffer): void {
+  override parseData(buffer: Uint8Array): void {
     this.data = buffer;
   }
 }
 
 const getField = (
   fields: {
-    [key: string]: Buffer;
+    [key: string]: Uint8Array;
   },
   key: string
 ) => {
   if (fields[key] == undefined) {
     throw new Error(`Connection header is missing ${key}.`);
   }
-  return fields[key]!.toString();
+  return new TextDecoder().decode(fields[key]);
 };
 
 export class Connection extends Record {
@@ -75,25 +90,25 @@ export class Connection extends Record {
   latching: boolean | null | undefined;
   reader: MessageReader | null | undefined;
 
-  constructor(fields: { [key: string]: Buffer }) {
+  constructor(fields: { [key: string]: Uint8Array }) {
     super();
-    this.conn = fields.conn!.readUInt32LE(0);
-    this.topic = fields.topic!.toString();
+    this.conn = readUint32(fields.conn!);
+    this.topic = new TextDecoder().decode(fields.topic);
     this.type = undefined;
     this.md5sum = undefined;
     this.messageDefinition = "";
   }
 
-  override parseData(buffer: Buffer): void {
+  override parseData(buffer: Uint8Array): void {
     const fields = extractFields(buffer);
     this.type = getField(fields, "type");
     this.md5sum = getField(fields, "md5sum");
     this.messageDefinition = getField(fields, "message_definition");
     if (fields.callerid != undefined) {
-      this.callerid = fields.callerid.toString();
+      this.callerid = new TextDecoder().decode(fields.callerid);
     }
     if (fields.latching != undefined) {
-      this.latching = fields.latching.toString() === "1";
+      this.latching = new TextDecoder().decode(fields.latching) === "1";
     }
   }
 }
@@ -102,15 +117,15 @@ export class MessageData extends Record {
   static opcode = 2;
   conn: number;
   time: Time;
-  data?: Buffer;
+  data?: Uint8Array;
 
-  constructor(fields: { [key: string]: Buffer }) {
+  constructor(fields: { [key: string]: Uint8Array }) {
     super();
-    this.conn = fields.conn!.readUInt32LE(0);
+    this.conn = readUint32(fields.conn!);
     this.time = extractTime(fields.time!, 0);
   }
 
-  override parseData(buffer: Buffer): void {
+  override parseData(buffer: Uint8Array): void {
     this.data = buffer;
   }
 }
@@ -122,19 +137,21 @@ export class IndexData extends Record {
   count: number;
   indices?: Array<{ time: Time; offset: number }>;
 
-  constructor(fields: { [key: string]: Buffer }) {
+  constructor(fields: { [key: string]: Uint8Array }) {
     super();
-    this.ver = fields.ver!.readUInt32LE(0);
-    this.conn = fields.conn!.readUInt32LE(0);
-    this.count = fields.count!.readUInt32LE(0);
+    this.ver = readUint32(fields.ver!);
+    this.conn = readUint32(fields.conn!);
+    this.count = readUint32(fields.count!);
   }
 
-  override parseData(buffer: Buffer): void {
+  override parseData(buffer: Uint8Array): void {
     this.indices = [];
+
+    const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
     for (let i = 0; i < this.count; i++) {
       this.indices.push({
         time: extractTime(buffer, i * 12),
-        offset: buffer.readUInt32LE(i * 12 + 8),
+        offset: view.getUint32(i * 12 + 8, true),
       });
     }
   }
@@ -150,21 +167,22 @@ export class ChunkInfo extends Record {
   connections: Array<{ conn: number; count: number }> = [];
   nextChunk: ChunkInfo | null | undefined;
 
-  constructor(fields: { [key: string]: Buffer }) {
+  constructor(fields: { [key: string]: Uint8Array }) {
     super();
-    this.ver = fields.ver!.readUInt32LE(0);
-    this.chunkPosition = Number(fields.chunk_pos!.readBigUInt64LE(0));
+    this.ver = readUint32(fields.ver!);
+    this.chunkPosition = readBigUInt64(fields.chunk_pos!);
     this.startTime = extractTime(fields.start_time!, 0);
     this.endTime = extractTime(fields.end_time!, 0);
-    this.count = fields.count!.readUInt32LE(0);
+    this.count = readUint32(fields.count!);
   }
 
-  override parseData(buffer: Buffer): void {
+  override parseData(buffer: Uint8Array): void {
     this.connections = [];
+    const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
     for (let i = 0; i < this.count; i++) {
       this.connections.push({
-        conn: buffer.readUInt32LE(i * 8),
-        count: buffer.readUInt32LE(i * 8 + 4),
+        conn: view.getUint32(i * 8, true),
+        count: view.getUint32(i * 8 + 4, true),
       });
     }
   }

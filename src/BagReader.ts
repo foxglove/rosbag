@@ -7,10 +7,13 @@
 
 import { compare, isGreaterThan, Time } from "@foxglove/rostime";
 
-import { parseHeader } from "./header";
+import { extractFields } from "./fields";
 import nmerge from "./nmerge";
 import { Record, BagHeader, Chunk, ChunkInfo, Connection, IndexData, MessageData } from "./record";
 import { Filelike, Constructor } from "./types";
+
+// Use little endian to read values in dataview
+const LITTLE_ENDIAN = true;
 
 interface ChunkReadResult {
   chunk: Chunk;
@@ -18,7 +21,7 @@ interface ChunkReadResult {
 }
 
 export type Decompress = {
-  [compression: string]: (buffer: Buffer, size: number) => Buffer;
+  [compression: string]: (buffer: Uint8Array, size: number) => Uint8Array;
 };
 
 const HEADER_READAHEAD = 4096;
@@ -29,18 +32,18 @@ const HEADER_OFFSET = 13;
 // can be useful to use directly for efficiently accessing raw pieces from
 // within the bag
 export default class BagReader {
-  _lastReadResult?: ChunkReadResult;
-  _file: Filelike;
-  _lastChunkInfo: ChunkInfo | null | undefined;
+  private _lastReadResult?: ChunkReadResult;
+  private _file: Filelike;
+  private _lastChunkInfo?: ChunkInfo;
 
   constructor(filelike: Filelike) {
     this._file = filelike;
-    this._lastChunkInfo = undefined;
   }
 
   async verifyBagHeader(): Promise<void> {
     const buffer = await this._file.read(0, HEADER_OFFSET);
-    if (buffer.toString() !== "#ROSBAG V2.0\n") {
+    const magic = new TextDecoder().decode(buffer);
+    if (magic !== "#ROSBAG V2.0\n") {
       throw new Error("Cannot identify bag format.");
     }
   }
@@ -51,13 +54,14 @@ export default class BagReader {
   async readHeader(): Promise<BagHeader> {
     await this.verifyBagHeader();
     const buffer = await this._file.read(HEADER_OFFSET, HEADER_READAHEAD);
+    const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 
     const read = buffer.length;
     if (read < 8) {
       throw new Error(`Record at position ${HEADER_OFFSET} is truncated.`);
     }
 
-    const headerLength = buffer.readInt32LE(0);
+    const headerLength = view.getInt32(0, LITTLE_ENDIAN);
     if (read < headerLength + 8) {
       throw new Error(`Record at position ${HEADER_OFFSET} header too large: ${headerLength}.`);
     }
@@ -82,7 +86,7 @@ export default class BagReader {
     const connections = this.readRecordsFromBuffer(buffer, connectionCount, fileOffset, Connection);
     const connectionBlockLength = connections[connectionCount - 1]!.end! - connections[0]!.offset!;
     const chunkInfos = this.readRecordsFromBuffer(
-      buffer.slice(connectionBlockLength),
+      buffer.subarray(connectionBlockLength),
       chunkCount,
       fileOffset + connectionBlockLength,
       ChunkInfo
@@ -148,7 +152,7 @@ export default class BagReader {
     }
 
     const messages = entries.map((entry) => {
-      return this.readRecordFromBuffer(chunk.data!.slice(entry.offset), chunk.dataOffset!, MessageData);
+      return this.readRecordFromBuffer(chunk.data!.subarray(entry.offset), chunk.dataOffset!, MessageData);
     });
 
     return messages;
@@ -182,7 +186,7 @@ export default class BagReader {
       chunk.data = result;
     }
     const indices = this.readRecordsFromBuffer(
-      buffer.slice(chunk.length),
+      buffer.subarray(chunk.length),
       chunkInfo.count,
       chunkInfo.chunkPosition + chunk.length!,
       IndexData
@@ -195,7 +199,7 @@ export default class BagReader {
 
   // reads count records from a buffer starting at fileOffset
   readRecordsFromBuffer<T extends Record>(
-    buffer: Buffer,
+    buffer: Uint8Array,
     count: number,
     fileOffset: number,
     cls: Constructor<T> & { opcode: number }
@@ -203,7 +207,7 @@ export default class BagReader {
     const records = [];
     let bufferOffset = 0;
     for (let i = 0; i < count; i++) {
-      const record = this.readRecordFromBuffer(buffer.slice(bufferOffset), fileOffset + bufferOffset, cls);
+      const record = this.readRecordFromBuffer(buffer.subarray(bufferOffset), fileOffset + bufferOffset, cls);
       // We know that .end and .offset are set by readRecordFromBuffer
       // A future enhancement is to remove the non-null assertion
       // Maybe record doesn't need to store these internall and we can return that from readRecordFromBuffer?
@@ -216,16 +220,30 @@ export default class BagReader {
 
   // read an individual record from a buffer
   readRecordFromBuffer<T extends Record>(
-    buffer: Buffer,
+    buffer: Uint8Array,
     fileOffset: number,
     cls: Constructor<T> & { opcode: number }
   ): T {
-    const headerLength = buffer.readInt32LE(0);
-    const record = parseHeader(buffer.slice(4, 4 + headerLength), cls);
+    const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+
+    const headerLength = view.getInt32(0, LITTLE_ENDIAN);
+
+    const fields = extractFields(buffer.subarray(4, 4 + headerLength));
+    if (fields.op == undefined) {
+      throw new Error("Record is missing 'op' field.");
+    }
+
+    const opView = new DataView(fields.op.buffer, fields.op.byteOffset, fields.op.byteLength);
+    const opcode = opView.getUint8(0);
+    if (opcode !== cls.opcode) {
+      throw new Error(`Expected ${cls.name} (${cls.opcode}) but found ${opcode}`);
+    }
+    const record = new cls(fields);
 
     const dataOffset = 4 + headerLength + 4;
-    const dataLength = buffer.readInt32LE(4 + headerLength);
-    const data = buffer.slice(dataOffset, dataOffset + dataLength);
+    const dataLength = view.getInt32(4 + headerLength, LITTLE_ENDIAN);
+
+    const data = buffer.subarray(dataOffset, dataOffset + dataLength);
 
     record.parseData(data);
 

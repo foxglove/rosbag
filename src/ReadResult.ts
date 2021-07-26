@@ -13,7 +13,7 @@ export default class ReadResult<T> {
   topic: string;
   message: T;
   timestamp: Time;
-  data: Buffer;
+  data: Uint8Array;
   chunkOffset: number;
   totalChunks: number;
 
@@ -21,7 +21,7 @@ export default class ReadResult<T> {
     topic: string,
     message: T,
     timestamp: Time,
-    data: Buffer,
+    data: Uint8Array,
     chunkOffset: number,
     totalChunks: number,
     freeze?: boolean | null | undefined
