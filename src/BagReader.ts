@@ -86,7 +86,7 @@ export default class BagReader {
     const connections = this.readRecordsFromBuffer(buffer, connectionCount, fileOffset, Connection);
     const connectionBlockLength = connections[connectionCount - 1]!.end! - connections[0]!.offset!;
     const chunkInfos = this.readRecordsFromBuffer(
-      buffer.slice(connectionBlockLength),
+      buffer.subarray(connectionBlockLength),
       chunkCount,
       fileOffset + connectionBlockLength,
       ChunkInfo
@@ -152,7 +152,7 @@ export default class BagReader {
     }
 
     const messages = entries.map((entry) => {
-      return this.readRecordFromBuffer(chunk.data!.slice(entry.offset), chunk.dataOffset!, MessageData);
+      return this.readRecordFromBuffer(chunk.data!.subarray(entry.offset), chunk.dataOffset!, MessageData);
     });
 
     return messages;
@@ -186,7 +186,7 @@ export default class BagReader {
       chunk.data = result;
     }
     const indices = this.readRecordsFromBuffer(
-      buffer.slice(chunk.length),
+      buffer.subarray(chunk.length),
       chunkInfo.count,
       chunkInfo.chunkPosition + chunk.length!,
       IndexData
@@ -207,7 +207,7 @@ export default class BagReader {
     const records = [];
     let bufferOffset = 0;
     for (let i = 0; i < count; i++) {
-      const record = this.readRecordFromBuffer(buffer.slice(bufferOffset), fileOffset + bufferOffset, cls);
+      const record = this.readRecordFromBuffer(buffer.subarray(bufferOffset), fileOffset + bufferOffset, cls);
       // We know that .end and .offset are set by readRecordFromBuffer
       // A future enhancement is to remove the non-null assertion
       // Maybe record doesn't need to store these internall and we can return that from readRecordFromBuffer?
@@ -228,10 +228,7 @@ export default class BagReader {
 
     const headerLength = view.getInt32(0, LITTLE_ENDIAN);
 
-    //const record = parseHeader(buffer.slice(4, 4 + headerLength), cls);
-
-    // fixme - use subarray to get a view over the data without a copy
-    const fields = extractFields(buffer.slice(4, 4 + headerLength));
+    const fields = extractFields(buffer.subarray(4, 4 + headerLength));
     if (fields.op == undefined) {
       throw new Error("Record is missing 'op' field.");
     }
@@ -247,8 +244,7 @@ export default class BagReader {
     const dataOffset = 4 + headerLength + 4;
     const dataLength = view.getInt32(4 + headerLength, LITTLE_ENDIAN);
 
-    // fixme - we can use subarray to get a view over the data without a copy
-    const data = buffer.slice(dataOffset, dataOffset + dataLength);
+    const data = buffer.subarray(dataOffset, dataOffset + dataLength);
 
     record.parseData(data);
 

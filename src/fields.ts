@@ -29,15 +29,14 @@ export function extractFields(buffer: Uint8Array): Record<string, Uint8Array> {
       throw new Error("Header fields are corrupt.");
     }
 
-    // fixme - use subarray to avoid copy
-    const field = buffer.slice(offset, offset + length);
+    const field = buffer.subarray(offset, offset + length);
     const index = field.indexOf(EQUALS_CHARCODE);
     if (index === -1) {
       throw new Error("Header field is missing equals sign.");
     }
 
-    const fieldName = new TextDecoder().decode(field.slice(0, index));
-    fields[fieldName] = field.slice(index + 1);
+    const fieldName = new TextDecoder().decode(field.subarray(0, index));
+    fields[fieldName] = field.subarray(index + 1);
     offset += length;
   }
 

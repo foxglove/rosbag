@@ -7,6 +7,8 @@
 
 /* eslint-disable filenames/match-exported */
 
+import assert from "assert";
+
 import Bag from "../Bag";
 import BagReader from "../BagReader";
 import { Filelike } from "../types";
@@ -28,7 +30,9 @@ export class Reader implements Filelike {
       reader.onload = function () {
         reader.onload = null;
         reader.onerror = null;
-        resolve(reader.result);
+        assert(reader.result);
+        assert(reader.result instanceof ArrayBuffer);
+        resolve(new Uint8Array(reader.result));
       };
       reader.onerror = function () {
         reader.onload = null;

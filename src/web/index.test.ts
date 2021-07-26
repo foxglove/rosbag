@@ -8,8 +8,14 @@
 // You may not use this file except in compliance with the License.
 
 import * as fs from "fs";
+import { TextEncoder, TextDecoder } from "util";
 
 import Bag, { Reader } from ".";
+
+// github.com/jsdom/jsdom/issues/2524
+global.TextEncoder = TextEncoder;
+// @ts-expect-error ignore type miss-match with util TextDecode and global one
+global.TextDecoder = TextDecoder;
 
 describe("browser reader", () => {
   it("works in node", async () => {
@@ -26,15 +32,15 @@ describe("browser reader", () => {
   it("propagates error for truncated bag", async () => {
     const data = fs.readFileSync(`${__dirname}/../../fixtures/example.bag`);
     const file = new File([data.slice(0, data.length - 1)], "example.bag");
-    await expect(Bag.open(file)).rejects.toThrow("out of range");
+    await expect(Bag.open(file)).rejects.toThrow("Offset is outside the bounds of the DataView");
   });
 
   it("allows multiple read operations at once", async () => {
     const buffer = new Blob([Uint8Array.from([0x00, 0x01, 0x02, 0x03, 0x04])]);
     const reader = new Reader(buffer);
     await expect(Promise.all([reader.read(0, 2), reader.read(0, 2)])).resolves.toEqual([
-      Buffer.from([0, 1]),
-      Buffer.from([0, 1]),
+      Uint8Array.from([0, 1]),
+      Uint8Array.from([0, 1]),
     ]);
   });
 

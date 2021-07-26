@@ -18,7 +18,7 @@ describe("node entrypoint", () => {
       const reader = new Reader(fixture);
       const buff = await reader.read(5, 10);
       expect(reader.size()).toBe(fs.statSync(fixture).size);
-      expect(buff.toString()).toBe("6789012345");
+      expect(buff).toEqual(Uint8Array.from([54, 55, 56, 57, 48, 49, 50, 51, 52, 53]));
     });
   });
 });

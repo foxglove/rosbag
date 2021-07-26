@@ -10,8 +10,6 @@ import { Time } from "@foxglove/rostime";
 
 import { extractFields, extractTime } from "./fields";
 
-const decoder = new TextDecoder();
-
 function readUint32(buff: Uint8Array): number {
   const view = new DataView(buff.buffer, buff.byteOffset, buff.byteLength);
   return view.getUint32(0, true);
@@ -60,7 +58,7 @@ export class Chunk extends Record {
 
   constructor(fields: { [key: string]: Uint8Array }) {
     super();
-    this.compression = decoder.decode(fields.compression);
+    this.compression = new TextDecoder().decode(fields.compression);
     this.size = readUint32(fields.size!);
   }
 
@@ -78,7 +76,7 @@ const getField = (
   if (fields[key] == undefined) {
     throw new Error(`Connection header is missing ${key}.`);
   }
-  return decoder.decode(fields[key]);
+  return new TextDecoder().decode(fields[key]);
 };
 
 export class Connection extends Record {
@@ -95,7 +93,7 @@ export class Connection extends Record {
   constructor(fields: { [key: string]: Uint8Array }) {
     super();
     this.conn = readUint32(fields.conn!);
-    this.topic = decoder.decode(fields.topic);
+    this.topic = new TextDecoder().decode(fields.topic);
     this.type = undefined;
     this.md5sum = undefined;
     this.messageDefinition = "";
@@ -107,10 +105,10 @@ export class Connection extends Record {
     this.md5sum = getField(fields, "md5sum");
     this.messageDefinition = getField(fields, "message_definition");
     if (fields.callerid != undefined) {
-      this.callerid = decoder.decode(fields.callerid);
+      this.callerid = new TextDecoder().decode(fields.callerid);
     }
     if (fields.latching != undefined) {
-      this.latching = decoder.decode(fields.latching) === "1";
+      this.latching = new TextDecoder().decode(fields.latching) === "1";
     }
   }
 }
