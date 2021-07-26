@@ -5,16 +5,12 @@
 // found in the LICENSE file in the root directory of this source tree.
 // You may not use this file except in compliance with the License.
 
-/* eslint-disable filenames/match-exported */
-
 import * as fs from "fs/promises";
 
-import Bag from "../Bag";
-import BagReader from "../BagReader";
 import { Filelike } from "../types";
 
 // reader using nodejs fs api
-export class Reader implements Filelike {
+export default class FileReader implements Filelike {
   _filename: string;
   _file?: fs.FileHandle;
   _size: number;
@@ -59,19 +55,3 @@ export class Reader implements Filelike {
     return this._size;
   }
 }
-
-const open = async (filename: File | string): Promise<Bag> => {
-  if (typeof filename !== "string") {
-    throw new Error(
-      "Expected filename to be a string. Make sure you are correctly importing the node or web version of Bag."
-    );
-  }
-  const bag = new Bag(new BagReader(new Reader(filename)));
-  await bag.open();
-  return bag;
-};
-Bag.open = open;
-
-export type { Filelike } from "../types";
-export { BagReader, open };
-export default Bag;

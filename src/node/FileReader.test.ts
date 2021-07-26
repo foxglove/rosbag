@@ -8,14 +8,14 @@
 import fs from "fs";
 import path from "path";
 
-import { Reader } from ".";
+import FileReader from "./FileReader";
 
 describe("node entrypoint", () => {
   describe("Reader", () => {
     const fixture = path.join(__dirname, "..", "..", "fixtures", "asci-file.txt");
 
     it("should read bytes from a file", async () => {
-      const reader = new Reader(fixture);
+      const reader = new FileReader(fixture);
       const buff = await reader.read(5, 10);
       expect(reader.size()).toBe(fs.statSync(fixture).size);
       expect(buff).toEqual(Uint8Array.from([54, 55, 56, 57, 48, 49, 50, 51, 52, 53]));

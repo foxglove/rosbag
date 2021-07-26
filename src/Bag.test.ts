@@ -12,9 +12,10 @@ import compress from "compressjs";
 import fs from "fs";
 import lz4 from "lz4js";
 
-import { ReadOptions } from "./Bag";
+import Bag, { ReadOptions } from "./Bag";
+import BagReader from "./BagReader";
 import ReadResult from "./ReadResult";
-import Bag from "./node";
+import FileReader from "./node/FileReader";
 
 const FILENAME = "example";
 
@@ -24,10 +25,16 @@ function getFixture(filename = FILENAME): string {
   return `${__dirname}/../fixtures/${filename}.bag`;
 }
 
+async function open(filename: string): Promise<Bag> {
+  const bag = new Bag(new BagReader(new FileReader(filename)));
+  await bag.open();
+  return bag;
+}
+
 async function fullyReadBag<T>(name: string, opts?: ReadOptions): Promise<ReadResult<T>[]> {
   const filename = getFixture(name);
   expect(fs.existsSync(filename)).toBe(true);
-  const bag = await Bag.open(filename);
+  const bag = await open(filename);
   const messages: ReadResult<T>[] = [];
   await bag.readMessages<T>(opts ?? {}, (msg) => {
     messages.push(msg);
@@ -37,8 +44,8 @@ async function fullyReadBag<T>(name: string, opts?: ReadOptions): Promise<ReadRe
 
 describe("basics", () => {
   it("handles empty and non-existent bags", async () => {
-    await expect(Bag.open(getFixture("NON_EXISTENT_FILE"))).rejects.toThrow("no such file or directory");
-    await expect(Bag.open(getFixture("empty-file"))).rejects.toThrow("Attempted to read 13 bytes");
+    await expect(open(getFixture("NON_EXISTENT_FILE"))).rejects.toThrow("no such file or directory");
+    await expect(open(getFixture("empty-file"))).rejects.toThrow("Attempted to read 13 bytes");
     await expect(fullyReadBag("no-messages")).resolves.toEqual([]);
   });
 });
@@ -80,7 +87,7 @@ describe("rosbag - high-level api", () => {
 
   it("returns chunkOffset and totalChunks on read results", async () => {
     const filename = getFixture();
-    const bag = await Bag.open(filename);
+    const bag = await open(filename);
     const messages: ReadResult<unknown>[] = [];
     await bag.readMessages({}, (msg) => {
       messages.push(msg);
@@ -90,7 +97,7 @@ describe("rosbag - high-level api", () => {
   });
 
   it("reads topics", async () => {
-    const bag = await Bag.open(getFixture());
+    const bag = await open(getFixture());
     const topics = [...bag.connections.values()].map((connection) => connection.topic);
     expect(topics).toEqual([
       "/rosout",
@@ -114,7 +121,7 @@ describe("rosbag - high-level api", () => {
   });
 
   it("can read bag twice at once", async () => {
-    const bag = await Bag.open(getFixture());
+    const bag = await open(getFixture());
     const messages1: ReadResult<unknown>[] = [];
     const messages2: ReadResult<unknown>[] = [];
     const readPromise1 = bag.readMessages({ topics: ["/tf"] }, (msg) => {
@@ -213,7 +220,7 @@ describe("rosbag - high-level api", () => {
 
   describe("compression", () => {
     it("throws if compression scheme is not registered", async () => {
-      const bag = await Bag.open(getFixture("example-bz2"));
+      const bag = await open(getFixture("example-bz2"));
       await expect(async () => await bag.readMessages({}, () => {})).rejects.toThrow("compression");
     });
 

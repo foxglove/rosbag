@@ -7,10 +7,9 @@
 // found in the LICENSE file in the root directory of this source tree.
 // You may not use this file except in compliance with the License.
 
-import * as fs from "fs";
 import { TextEncoder, TextDecoder } from "util";
 
-import Bag, { Reader } from ".";
+import BlobReader from "./BlobReader";
 
 // github.com/jsdom/jsdom/issues/2524
 global.TextEncoder = TextEncoder;
@@ -20,7 +19,7 @@ global.TextDecoder = TextDecoder;
 describe("browser reader", () => {
   it("works in node", async () => {
     const buffer = new Blob([Uint8Array.from([0x00, 0x01, 0x02, 0x03, 0x04])]);
-    const reader = new Reader(buffer);
+    const reader = new BlobReader(buffer);
     const res = await reader.read(0, 2);
     expect(res).toHaveLength(2);
     expect(res instanceof Uint8Array).toBe(true);
@@ -29,15 +28,9 @@ describe("browser reader", () => {
     expect(buff[1]).toBe(0x01);
   });
 
-  it("propagates error for truncated bag", async () => {
-    const data = fs.readFileSync(`${__dirname}/../../fixtures/example.bag`);
-    const file = new File([data.slice(0, data.length - 1)], "example.bag");
-    await expect(Bag.open(file)).rejects.toThrow("Offset is outside the bounds of the DataView");
-  });
-
   it("allows multiple read operations at once", async () => {
     const buffer = new Blob([Uint8Array.from([0x00, 0x01, 0x02, 0x03, 0x04])]);
-    const reader = new Reader(buffer);
+    const reader = new BlobReader(buffer);
     await expect(Promise.all([reader.read(0, 2), reader.read(0, 2)])).resolves.toEqual([
       Uint8Array.from([0, 1]),
       Uint8Array.from([0, 1]),
@@ -46,7 +39,7 @@ describe("browser reader", () => {
 
   it("reports browser FileReader errors", async () => {
     const buffer = new Blob([Uint8Array.from([0x00, 0x01, 0x02, 0x03, 0x04])]);
-    const reader = new Reader(buffer);
+    const reader = new BlobReader(buffer);
     const actualFileReader = global.FileReader;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (global as any).FileReader = class FailReader {
