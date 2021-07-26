@@ -44,7 +44,6 @@ export function extractFields(buffer: Uint8Array): Record<string, Uint8Array> {
 }
 
 // reads a Time object out of a buffer at the given offset
-// fixme - accept a dataview instead
 export function extractTime(buffer: Uint8Array, offset: number): Time {
   const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
   const sec = view.getUint32(offset, true);

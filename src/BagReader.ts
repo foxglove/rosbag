@@ -233,7 +233,6 @@ export default class BagReader {
       throw new Error("Record is missing 'op' field.");
     }
 
-    // fixme - avoid making another dataview?
     const opView = new DataView(fields.op.buffer, fields.op.byteOffset, fields.op.byteLength);
     const opcode = opView.getUint8(0);
     if (opcode !== cls.opcode) {
