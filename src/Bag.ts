@@ -53,10 +53,10 @@ export default class Bag {
   // if the bag is manually created with the constructor, you must call `await open()` on the bag
   // generally this is called for you if you're using `const bag = await Bag.open()`
   async open(): Promise<void> {
-    this.header = await this.reader.readHeaderAsync();
+    this.header = await this.reader.readHeader();
     const { connectionCount, chunkCount, indexPosition } = this.header;
 
-    const result = await this.reader.readConnectionsAndChunkInfoAsync(indexPosition, connectionCount, chunkCount);
+    const result = await this.reader.readConnectionsAndChunkInfo(indexPosition, connectionCount, chunkCount);
 
     this.connections = new Map<number, Connection>();
 
@@ -115,13 +115,7 @@ export default class Bag {
 
     for (let i = 0; i < chunkInfos.length; i++) {
       const info = chunkInfos[i]!;
-      const messages = await this.reader.readChunkMessagesAsync(
-        info,
-        filteredConnections,
-        startTime,
-        endTime,
-        decompress
-      );
+      const messages = await this.reader.readChunkMessages(info, filteredConnections, startTime, endTime, decompress);
       messages.forEach((msg) => callback(parseMsg(msg, i)));
     }
   }

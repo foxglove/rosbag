@@ -38,7 +38,7 @@ async function fullyReadBag<T>(name: string, opts?: ReadOptions): Promise<ReadRe
 describe("basics", () => {
   it("handles empty and non-existent bags", async () => {
     await expect(Bag.open(getFixture("NON_EXISTENT_FILE"))).rejects.toThrow("no such file or directory");
-    await expect(Bag.open(getFixture("empty-file"))).rejects.toThrow("Missing file header.");
+    await expect(Bag.open(getFixture("empty-file"))).rejects.toThrow("Attempted to read 13 bytes");
     await expect(fullyReadBag("no-messages")).resolves.toEqual([]);
   });
 });

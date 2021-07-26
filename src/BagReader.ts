@@ -10,7 +10,7 @@ import { compare, isGreaterThan, Time } from "@foxglove/rostime";
 import { parseHeader } from "./header";
 import nmerge from "./nmerge";
 import { Record, BagHeader, Chunk, ChunkInfo, Connection, IndexData, MessageData } from "./record";
-import { Callback, Filelike, Constructor } from "./types";
+import { Filelike, Constructor } from "./types";
 
 interface ChunkReadResult {
   chunk: Chunk;
@@ -38,132 +38,76 @@ export default class BagReader {
     this._lastChunkInfo = undefined;
   }
 
-  verifyBagHeader(callback: Callback<BagHeader>, next: () => void): void {
-    this._file.read(0, HEADER_OFFSET, (error?: Error | null, buffer?: Buffer | null) => {
-      if (error != null || buffer == null) {
-        return callback(error ?? new Error("Missing both error and buffer"));
-      }
-
-      if (this._file.size() < HEADER_OFFSET) {
-        return callback(new Error("Missing file header."));
-      }
-
-      if (buffer.toString() !== "#ROSBAG V2.0\n") {
-        return callback(new Error("Cannot identify bag format."));
-      }
-      next();
-    });
+  async verifyBagHeader(): Promise<void> {
+    const buffer = await this._file.read(0, HEADER_OFFSET);
+    if (buffer.toString() !== "#ROSBAG V2.0\n") {
+      throw new Error("Cannot identify bag format.");
+    }
   }
 
   // reads the header block from the rosbag file
   // generally you call this first
   // because you need the header information to call readConnectionsAndChunkInfo
-  readHeader(callback: Callback<BagHeader>): void {
-    this.verifyBagHeader(callback, () => {
-      return this._file.read(HEADER_OFFSET, HEADER_READAHEAD, (error?: Error | null, buffer?: Buffer | null) => {
-        if (error != null || buffer == null) {
-          return callback(error ?? new Error("Missing both error and buffer"));
-        }
+  async readHeader(): Promise<BagHeader> {
+    await this.verifyBagHeader();
+    const buffer = await this._file.read(HEADER_OFFSET, HEADER_READAHEAD);
 
-        const read = buffer.length;
-        if (read < 8) {
-          return callback(new Error(`Record at position ${HEADER_OFFSET} is truncated.`));
-        }
+    const read = buffer.length;
+    if (read < 8) {
+      throw new Error(`Record at position ${HEADER_OFFSET} is truncated.`);
+    }
 
-        const headerLength = buffer.readInt32LE(0);
-        if (read < headerLength + 8) {
-          return callback(new Error(`Record at position ${HEADER_OFFSET} header too large: ${headerLength}.`));
-        }
-        try {
-          const header = this.readRecordFromBuffer(buffer, HEADER_OFFSET, BagHeader);
-          return callback(null, header);
-        } catch (e) {
-          return callback(new Error(`Could not read header from rosbag file buffer - ${e.message}`));
-        }
-      });
-    });
-  }
-
-  // promisified version of readHeader
-  async readHeaderAsync(): Promise<BagHeader> {
-    return await new Promise((resolve, reject) =>
-      this.readHeader((err?: Error | null, header?: BagHeader | null) =>
-        err != null || header == null ? reject(err) : resolve(header)
-      )
-    );
+    const headerLength = buffer.readInt32LE(0);
+    if (read < headerLength + 8) {
+      throw new Error(`Record at position ${HEADER_OFFSET} header too large: ${headerLength}.`);
+    }
+    return this.readRecordFromBuffer(buffer, HEADER_OFFSET, BagHeader);
   }
 
   // reads connection and chunk information from the bag
   // you'll generally call this after reading the header so you can get
   // connection metadata and chunkInfos which allow you to seek to individual
   // chunks & read them
-  readConnectionsAndChunkInfo(
-    fileOffset: number,
-    connectionCount: number,
-    chunkCount: number,
-    callback: Callback<{ connections: Connection[]; chunkInfos: ChunkInfo[] }>
-  ): void {
-    this._file.read(fileOffset, this._file.size() - fileOffset, (err?: Error | null, buffer?: Buffer | null) => {
-      if (err != null || buffer == null) {
-        return callback(err ?? new Error("Missing both error and buffer"));
-      }
-
-      if (connectionCount === 0) {
-        return callback(null, { connections: [], chunkInfos: [] });
-      }
-
-      try {
-        const connections = this.readRecordsFromBuffer(buffer, connectionCount, fileOffset, Connection);
-        const connectionBlockLength = connections[connectionCount - 1]!.end! - connections[0]!.offset!;
-        const chunkInfos = this.readRecordsFromBuffer(
-          buffer.slice(connectionBlockLength),
-          chunkCount,
-          fileOffset + connectionBlockLength,
-          ChunkInfo
-        );
-
-        if (chunkCount > 0) {
-          for (let i = 0; i < chunkCount - 1; i++) {
-            chunkInfos[i]!.nextChunk = chunkInfos[i + 1];
-          }
-          chunkInfos[chunkCount - 1]!.nextChunk = null;
-        }
-
-        return callback(null, { connections, chunkInfos });
-      } catch (error) {
-        return callback(error);
-      }
-    });
-  }
-
-  // promisified version of readConnectionsAndChunkInfo
-  async readConnectionsAndChunkInfoAsync(
+  async readConnectionsAndChunkInfo(
     fileOffset: number,
     connectionCount: number,
     chunkCount: number
   ): Promise<{ connections: Connection[]; chunkInfos: ChunkInfo[] }> {
-    return await new Promise((resolve, reject) => {
-      this.readConnectionsAndChunkInfo(
-        fileOffset,
-        connectionCount,
-        chunkCount,
-        (err?: Error | null, result?: { connections: Connection[]; chunkInfos: ChunkInfo[] } | null) =>
-          err != null || result == null ? reject(err) : resolve(result)
-      );
-    });
+    const buffer = await this._file.read(fileOffset, this._file.size() - fileOffset);
+
+    if (connectionCount === 0) {
+      return { connections: [], chunkInfos: [] };
+    }
+
+    const connections = this.readRecordsFromBuffer(buffer, connectionCount, fileOffset, Connection);
+    const connectionBlockLength = connections[connectionCount - 1]!.end! - connections[0]!.offset!;
+    const chunkInfos = this.readRecordsFromBuffer(
+      buffer.slice(connectionBlockLength),
+      chunkCount,
+      fileOffset + connectionBlockLength,
+      ChunkInfo
+    );
+
+    if (chunkCount > 0) {
+      for (let i = 0; i < chunkCount - 1; i++) {
+        chunkInfos[i]!.nextChunk = chunkInfos[i + 1];
+      }
+      chunkInfos[chunkCount - 1]!.nextChunk = null;
+    }
+
+    return { connections, chunkInfos };
   }
 
   // read individual raw messages from the bag at a given chunk
   // filters to a specific set of connection ids, start time, & end time
   // generally the records will be of type MessageData
-  readChunkMessages(
+  async readChunkMessages(
     chunkInfo: ChunkInfo,
     connections: number[],
-    startTime: Time | null,
-    endTime: Time | null,
-    decompress: Decompress,
-    callback: Callback<MessageData[]>
-  ): void {
+    startTime: Time,
+    endTime: Time,
+    decompress: Decompress
+  ): Promise<MessageData[]> {
     const start = startTime ?? { sec: 0, nsec: 0 };
     const end = endTime ?? { sec: Number.MAX_VALUE, nsec: Number.MAX_VALUE };
     const conns =
@@ -172,80 +116,51 @@ export default class BagReader {
         return connection.conn;
       });
 
-    this.readChunk(chunkInfo, decompress, (error?: Error | null, result?: ChunkReadResult | null) => {
-      if (error != null || result == null) {
-        return callback(error ?? new Error("Missing both error and result"));
-      }
+    const result = await this.readChunk(chunkInfo, decompress);
 
-      const chunk = result.chunk;
-      const indices: {
-        [conn: number]: IndexData;
-      } = {};
-      result.indices.forEach((index) => {
-        indices[index.conn] = index;
-      });
-      const presentConnections = conns.filter((conn) => {
-        return indices[conn] != undefined;
-      });
-      const iterables = presentConnections.map((conn) => {
-        return indices[conn]!.indices![Symbol.iterator]();
-      });
-      const iter = nmerge((a, b) => compare(a.time, b.time), ...iterables);
-
-      const entries = [];
-      let item = iter.next();
-      while (item.done !== true) {
-        const { value } = item;
-        item = iter.next();
-        if (value == null || isGreaterThan(start, value.time)) {
-          continue;
-        }
-        if (isGreaterThan(value.time, end)) {
-          break;
-        }
-        entries.push(value);
-      }
-
-      const messages = entries.map((entry) => {
-        return this.readRecordFromBuffer(chunk.data!.slice(entry.offset), chunk.dataOffset!, MessageData);
-      });
-
-      return callback(null, messages);
+    const chunk = result.chunk;
+    const indices: {
+      [conn: number]: IndexData;
+    } = {};
+    result.indices.forEach((index) => {
+      indices[index.conn] = index;
     });
-  }
-
-  // promisified version of readChunkMessages
-  async readChunkMessagesAsync(
-    chunkInfo: ChunkInfo,
-    connections: number[],
-    startTime: Time,
-    endTime: Time,
-    decompress: Decompress
-  ): Promise<MessageData[]> {
-    return await new Promise((resolve, reject) => {
-      this.readChunkMessages(
-        chunkInfo,
-        connections,
-        startTime,
-        endTime,
-        decompress,
-        (err?: Error | null, messages?: MessageData[] | null) =>
-          err != null || messages == null ? reject(err) : resolve(messages)
-      );
+    const presentConnections = conns.filter((conn) => {
+      return indices[conn] != undefined;
     });
+    const iterables = presentConnections.map((conn) => {
+      return indices[conn]!.indices![Symbol.iterator]();
+    });
+    const iter = nmerge((a, b) => compare(a.time, b.time), ...iterables);
+
+    const entries = [];
+    let item = iter.next();
+    while (item.done !== true) {
+      const { value } = item;
+      item = iter.next();
+      if (value == null || isGreaterThan(start, value.time)) {
+        continue;
+      }
+      if (isGreaterThan(value.time, end)) {
+        break;
+      }
+      entries.push(value);
+    }
+
+    const messages = entries.map((entry) => {
+      return this.readRecordFromBuffer(chunk.data!.slice(entry.offset), chunk.dataOffset!, MessageData);
+    });
+
+    return messages;
   }
 
   // reads a single chunk record && its index records given a chunkInfo
-  readChunk(chunkInfo: ChunkInfo, decompress: Decompress, callback: Callback<ChunkReadResult>): void {
+  async readChunk(chunkInfo: ChunkInfo, decompress: Decompress): Promise<ChunkReadResult> {
     // if we're reading the same chunk a second time return the cached version
     // to avoid doing decompression on the same chunk multiple times which is
     // expensive
     if (chunkInfo === this._lastChunkInfo && this._lastReadResult != null) {
-      // always callback async, even if we have the result
-      // https://oren.github.io/blog/zalgo.html
-      const lastReadResult = this._lastReadResult;
-      callback(null, lastReadResult);
-      return;
+      return this._lastReadResult;
     }
     const { nextChunk } = chunkInfo;
 
@@ -254,35 +169,28 @@ export default class BagReader {
         ? nextChunk.chunkPosition - chunkInfo.chunkPosition
         : this._file.size() - chunkInfo.chunkPosition;
 
-    this._file.read(chunkInfo.chunkPosition, readLength, (err?: Error | null, buffer?: Buffer | null) => {
-      if (err != null || buffer == null) {
-        callback(err ?? new Error("Missing both error and buffer"));
-        return;
-      }
+    const buffer = await this._file.read(chunkInfo.chunkPosition, readLength);
 
-      const chunk = this.readRecordFromBuffer(buffer, chunkInfo.chunkPosition, Chunk);
-      const { compression } = chunk;
-      if (compression !== "none") {
-        const decompressFn = decompress[compression];
-        if (decompressFn == null) {
-          callback(new Error(`Unsupported compression type ${chunk.compression}`));
-          return;
-        }
-        const result = decompressFn(chunk.data!, chunk.size);
-        chunk.data = result;
+    const chunk = this.readRecordFromBuffer(buffer, chunkInfo.chunkPosition, Chunk);
+    const { compression } = chunk;
+    if (compression !== "none") {
+      const decompressFn = decompress[compression];
+      if (decompressFn == null) {
+        throw new Error(`Unsupported compression type ${chunk.compression}`);
       }
-      const indices = this.readRecordsFromBuffer(
-        buffer.slice(chunk.length),
-        chunkInfo.count,
-        chunkInfo.chunkPosition + chunk.length!,
-        IndexData
-      );
+      const result = decompressFn(chunk.data!, chunk.size);
+      chunk.data = result;
+    }
+    const indices = this.readRecordsFromBuffer(
+      buffer.slice(chunk.length),
+      chunkInfo.count,
+      chunkInfo.chunkPosition + chunk.length!,
+      IndexData
+    );
 
-      this._lastChunkInfo = chunkInfo;
-      this._lastReadResult = { chunk, indices };
-      callback(null, this._lastReadResult);
-      return;
-    });
+    this._lastChunkInfo = chunkInfo;
+    this._lastReadResult = { chunk, indices };
+    return this._lastReadResult;
   }
 
   // reads count records from a buffer starting at fileOffset

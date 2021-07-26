@@ -6,7 +6,6 @@
 // You may not use this file except in compliance with the License.
 
 import BagReader from "./BagReader";
-import { Callback } from "./types";
 
 function int64Buffer(number: number) {
   const buff = Buffer.alloc(8);
@@ -37,9 +36,9 @@ class FakeHeaderFilelike {
     return 4096;
   }
 
-  read(offset: number, _: number, callback: Callback<Buffer>): void {
+  async read(offset: number, _: number): Promise<Buffer> {
     if (offset === 0) {
-      return callback(null, Buffer.from(this.preamble, "utf8"));
+      return Buffer.from(this.preamble, "utf8");
     }
     if (offset === 13) {
       const resultBuffer = Buffer.alloc(4096, 0);
@@ -73,9 +72,9 @@ class FakeHeaderFilelike {
       // According to rosbag documentation,
       // header record is padded out by filling with ASCII space (0x20).
       resultBuffer.fill(0x20, currentOffset);
-      return callback(null, resultBuffer);
+      return resultBuffer;
     }
-    return callback(new Error(`Unexpected read position: ${offset}`));
+    throw new Error(`Unexpected read position: ${offset}`);
   }
 }
 
@@ -85,7 +84,7 @@ describe("BagReader", () => {
       const filelike = new FakeHeaderFilelike();
       filelike.preamble = "#ROSBAG V1.0\n";
       const reader = new BagReader(filelike);
-      await expect(reader.readHeaderAsync()).rejects.toThrow();
+      await expect(reader.readHeader()).rejects.toThrow();
     });
 
     it("parses header correctly with small int32 values", async () => {
@@ -95,7 +94,7 @@ describe("BagReader", () => {
       filelike.chunkCount = 3;
       const reader = new BagReader(filelike);
 
-      const header = await reader.readHeaderAsync();
+      const header = await reader.readHeader();
       expect(header.indexPosition).toEqual(1);
       expect(header.connectionCount).toEqual(2);
       expect(header.chunkCount).toEqual(3);
@@ -108,7 +107,7 @@ describe("BagReader", () => {
       filelike.connectionCount = 200000;
       filelike.chunkCount = 300000;
       const reader = new BagReader(filelike);
-      const header = await reader.readHeaderAsync();
+      const header = await reader.readHeader();
       expect(header.indexPosition).toEqual(100000);
       expect(header.connectionCount).toEqual(200000);
       expect(header.chunkCount).toEqual(300000);

@@ -14,16 +14,11 @@ describe("node entrypoint", () => {
   describe("Reader", () => {
     const fixture = path.join(__dirname, "..", "..", "fixtures", "asci-file.txt");
 
-    // eslint-disable-next-line jest/no-done-callback
-    it("should read bytes from a file", (done) => {
+    it("should read bytes from a file", async () => {
       const reader = new Reader(fixture);
-      reader.read(5, 10, (err?: Error | null, buff?: Buffer | null) => {
-        expect(err).toBeNull();
-        expect(buff).not.toBeNull();
-        expect(reader.size()).toBe(fs.statSync(fixture).size);
-        expect(buff!.toString()).toBe("6789012345");
-        reader.close(done);
-      });
+      const buff = await reader.read(5, 10);
+      expect(reader.size()).toBe(fs.statSync(fixture).size);
+      expect(buff.toString()).toBe("6789012345");
     });
   });
 });
