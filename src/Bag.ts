@@ -38,17 +38,10 @@ export default class Bag {
   startTime: Time | null | undefined;
   endTime: Time | null | undefined;
 
-  // you can optionally create a bag manually passing in a bagReader instance
   constructor(bagReader: BagReader) {
     this.reader = bagReader;
     this.connections = new Map<number, Connection>();
   }
-
-  static open = async (_file: File | string): Promise<Bag> => {
-    throw new Error(
-      "This method should have been overridden based on the environment. Make sure you are correctly importing the node or web version of Bag."
-    );
-  };
 
   // if the bag is manually created with the constructor, you must call `await open()` on the bag
   // generally this is called for you if you're using `const bag = await Bag.open()`

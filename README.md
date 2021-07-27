@@ -21,11 +21,14 @@ The most common way to interact with a rosbag is to read data records for a spec
 Here is an example of reading messages from a rosbag in node.js:
 
 ```typescript
-const { open } = require("rosbag");
+import { Bag, BagReader } from "@foxglove/rosbag";
+import { FileReader } from "@foxglove/rosbag/node";
 
 async function logMessagesFromFooBar() {
   // open a new bag at a given file location:
-  const bag = await open("../path/to/ros.bag");
+  const bag = new Bag(new BagReader(new FileReader("../path/to/ros.bag")));
+
+  await bag.open();
 
   // read all messages from both the '/foo' and '/bar' topics:
   await bag.readMessages({ topics: ["/foo", "/bar"] }, (result) => {
@@ -43,14 +46,6 @@ logMessagesFromFooBar();
 ```
 
 ## API
-
-### Opening a new rosbag reader
-
-```typescript
-function open(fileOrPath: File | string) => Promise<Bag>
-```
-
-Opening a new rosbag reader is done with the `open` function. In the browser the function takes [a File instance](https://developer.mozilla.org/en-US/docs/Web/API/File) which you will generally get from a file input element. In node.js the function takes a string which should be the full path to a rosbag file. Node.js will read the file off of the disk. The promise will reject if there is an issue opening the file or if the file format is invalid, otherwise it will resolve with an instance of a `Bag`.
 
 ### Bag instance
 

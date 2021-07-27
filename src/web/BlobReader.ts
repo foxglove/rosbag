@@ -5,20 +5,18 @@
 // found in the LICENSE file in the root directory of this source tree.
 // You may not use this file except in compliance with the License.
 
-/* eslint-disable filenames/match-exported */
-
-import assert from "assert";
-
-import Bag from "../Bag";
-import BagReader from "../BagReader";
 import { Filelike } from "../types";
 
 // browser reader for Blob|File objects
-export class Reader implements Filelike {
+export default class BlobReader implements Filelike {
   _blob: Blob;
   _size: number;
 
-  constructor(blob: Blob) {
+  constructor(blob: Blob | File) {
+    if (!(blob instanceof Blob)) {
+      throw new Error("Expected file to be a File or Blob.");
+    }
+
     this._blob = blob;
     this._size = blob.size;
   }
@@ -30,8 +28,12 @@ export class Reader implements Filelike {
       reader.onload = function () {
         reader.onload = null;
         reader.onerror = null;
-        assert(reader.result);
-        assert(reader.result instanceof ArrayBuffer);
+
+        if (reader.result == undefined || !(reader.result instanceof ArrayBuffer)) {
+          reject("Unsupported format for BlobReader");
+          return;
+        }
+
         resolve(new Uint8Array(reader.result));
       };
       reader.onerror = function () {
@@ -48,19 +50,3 @@ export class Reader implements Filelike {
     return this._size;
   }
 }
-
-const open = async (file: File | string): Promise<Bag> => {
-  if (!(file instanceof Blob)) {
-    throw new Error(
-      "Expected file to be a File or Blob. Make sure you are correctly importing the node or web version of Bag."
-    );
-  }
-  const bag = new Bag(new BagReader(new Reader(file)));
-  await bag.open();
-  return bag;
-};
-Bag.open = open;
-
-export type { Filelike } from "../types";
-export { BagReader, open };
-export default Bag;
