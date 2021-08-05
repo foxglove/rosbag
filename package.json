@@ -15,8 +15,8 @@
   ],
   "scripts": {
     "clean": "rimraf dist *.tsbuildinfo",
-    "prepack": "yarn clean && tsc -b tsconfig.json tsconfig.cjs.json && (find src dist | xargs shasum || true)",
-    "build": "yarn clean && tsc -b tsconfig.json tsconfig.cjs.json && (find src dist | xargs shasum || true)",
+    "prepack": "yarn clean && tsc -b tsconfig.json tsconfig.cjs.json && cat dist/tsconfig.tsbuildinfo",
+    "build": "yarn clean && tsc -b tsconfig.json tsconfig.cjs.json && cat dist/tsconfig.tsbuildinfo",
     "lint": "eslint --report-unused-disable-directives --fix .",
     "lint:ci": "eslint --report-unused-disable-directives .",
     "test": "jest",
