@@ -1,8 +1,8 @@
-// Conditional Exports are not yet widely supported.
+// Typescript and vscode don't yet support named exports.
 // For now we "fake" them by having this top level js file
 // https://nodejs.org/api/packages.html#packages_conditional_exports
 
-const { default: BlobReader } = require("./dist/cjs/web/BlobReader");
+const { default: BlobReader } = require("./dist/esm/web/BlobReader");
 
 module.exports = {
   BlobReader,

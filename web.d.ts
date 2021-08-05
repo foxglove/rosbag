@@ -1,1 +1,1 @@
-export * as BlobReader from "./dist/cjs/web/BlobReader";
+export * as BlobReader from "./dist/esm/web/BlobReader";
