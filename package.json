@@ -6,9 +6,8 @@
     "type": "git",
     "url": "https://github.com/foxglove/rosbag.git"
   },
-  "main": "dist/cjs/node/index.js",
-  "module": "dist/esm/node/index.js",
-  "browser": "dist/esm/web/index.js",
+  "main": "dist/cjs/index.js",
+  "module": "dist/esm/index.js",
   "files": [
     "dist",
     "src"
