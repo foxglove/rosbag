@@ -15,8 +15,8 @@
   ],
   "scripts": {
     "clean": "rimraf dist *.tsbuildinfo",
-    "prepack": "yarn clean && tsc -b tsconfig.json tsconfig.cjs.json && cat dist/tsconfig.tsbuildinfo",
-    "build": "yarn clean && tsc -b tsconfig.json tsconfig.cjs.json && cat dist/tsconfig.tsbuildinfo",
+    "prepack": "tsc -b tsconfig.json tsconfig.cjs.json",
+    "build": "tsc -b tsconfig.json tsconfig.cjs.json",
     "lint": "eslint --report-unused-disable-directives --fix .",
     "lint:ci": "eslint --report-unused-disable-directives .",
     "test": "jest",
@@ -30,7 +30,7 @@
   },
   "devDependencies": {
     "@foxglove/eslint-plugin": "0.13.0",
-    "@foxglove/tsconfig": "1.0.0",
+    "@foxglove/tsconfig": "1.1.0",
     "@types/heap": "0.2.28",
     "@types/jest": "26.0.20",
     "@types/node": "14.14.25",
