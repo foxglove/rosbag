@@ -22,7 +22,12 @@ function readInt32(buff: Uint8Array): number {
 
 function readBigUInt64(buff: Uint8Array): number {
   const view = new DataView(buff.buffer, buff.byteOffset, buff.byteLength);
-  return Number(view.getBigUint64(0, true));
+  // Avoid using DataView.getBigUint64 for improved browser compatibility
+  const bigint = BigInt(view.getUint32(0, true)) | (BigInt(view.getUint32(4, true)) << 32n);
+  if (bigint > Number.MAX_SAFE_INTEGER) {
+    throw new Error(`Read a bigint larger than 2**53: ${bigint}`);
+  }
+  return Number(bigint);
 }
 
 export class Record {
