@@ -1,1 +1,1 @@
-export * as BlobReader from "./dist/esm/web/BlobReader";
+export { default as BlobReader } from "./dist/esm/web/BlobReader";
