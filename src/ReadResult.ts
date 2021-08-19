@@ -24,7 +24,7 @@ export default class ReadResult<T> {
     data: Uint8Array,
     chunkOffset: number,
     totalChunks: number,
-    freeze?: boolean | null | undefined
+    freeze?: boolean | null | undefined,
   ) {
     // string: the topic the message was on
     this.topic = topic;

@@ -44,7 +44,9 @@ async function fullyReadBag<T>(name: string, opts?: ReadOptions): Promise<ReadRe
 
 describe("basics", () => {
   it("handles empty and non-existent bags", async () => {
-    await expect(open(getFixture("NON_EXISTENT_FILE"))).rejects.toThrow("no such file or directory");
+    await expect(open(getFixture("NON_EXISTENT_FILE"))).rejects.toThrow(
+      "no such file or directory",
+    );
     await expect(open(getFixture("empty-file"))).rejects.toThrow("Attempted to read 13 bytes");
     await expect(fullyReadBag("no-messages")).resolves.toEqual([]);
   });
@@ -55,7 +57,7 @@ describe("rosbag - high-level api", () => {
     name: string,
     expected: number,
     opts: ReadOptions,
-    done?: (messages: ReadResult<unknown>[]) => void
+    done?: (messages: ReadResult<unknown>[]) => void,
   ) => {
     it(`finds ${expected} messages in ${name} with ${JSON.stringify(opts)}`, async () => {
       const messages = await fullyReadBag(name, opts);
@@ -151,12 +153,17 @@ describe("rosbag - high-level api", () => {
   });
 
   it("freezes when requested", async () => {
-    const [notFrozenMsg] = await fullyReadBag<LinearMessage>(FILENAME, { topics: ["/turtle1/cmd_vel"] });
+    const [notFrozenMsg] = await fullyReadBag<LinearMessage>(FILENAME, {
+      topics: ["/turtle1/cmd_vel"],
+    });
     expect(notFrozenMsg!.message.linear).toEqual({ x: 2, y: 0, z: 0 });
     notFrozenMsg!.message.linear.z = 100;
     expect(notFrozenMsg!.message.linear).toEqual({ x: 2, y: 0, z: 100 });
 
-    const [frozenMsg] = await fullyReadBag<LinearMessage>(FILENAME, { topics: ["/turtle1/cmd_vel"], freeze: true });
+    const [frozenMsg] = await fullyReadBag<LinearMessage>(FILENAME, {
+      topics: ["/turtle1/cmd_vel"],
+      freeze: true,
+    });
     expect(frozenMsg!.message.linear).toEqual({ x: 2, y: 0, z: 0 });
     expect(() => {
       frozenMsg!.message.linear.z = 100;
@@ -179,7 +186,7 @@ describe("rosbag - high-level api", () => {
     const topics = messages.map((msg) => msg.topic);
     expect(topics).toHaveLength(2695);
     topics.forEach((topic) =>
-      expect(topic === "/turtle1/color_sensor" || topic === "/turtle2/color_sensor").toBe(true)
+      expect(topic === "/turtle1/color_sensor" || topic === "/turtle2/color_sensor").toBe(true),
     );
   });
 
@@ -205,14 +212,19 @@ describe("rosbag - high-level api", () => {
     });
 
     // First make sure that the messages were actually shuffled.
-    const smallerMessages = messages.map(({ timestamp, chunkOffset }) => ({ timestamp, chunkOffset }));
+    const smallerMessages = messages.map(({ timestamp, chunkOffset }) => ({
+      timestamp,
+      chunkOffset,
+    }));
     expect(smallerMessages[0]).toBeDefined();
     const sortedMessages = [...smallerMessages];
     sortedMessages.sort((a, b) => compare(a.timestamp, b.timestamp));
     expect(smallerMessages).not.toEqual(sortedMessages);
 
     // And make sure that the chunks were also overlapping, ie. their chunksOffets are interlaced.
-    expect(sortedMessages.map(({ chunkOffset }) => chunkOffset)).toEqual([0, 2, 0, 1, 1, 0, 0, 0, 2]);
+    expect(sortedMessages.map(({ chunkOffset }) => chunkOffset)).toEqual([
+      0, 2, 0, 1, 1, 0, 0, 0, 2,
+    ]);
 
     // Now make sure that we have the number of messages that we expect from this fixture.
     expect(messages).toHaveLength(9);

@@ -76,7 +76,7 @@ const getField = (
   fields: {
     [key: string]: Uint8Array;
   },
-  key: string
+  key: string,
 ) => {
   if (fields[key] == undefined) {
     throw new Error(`Connection header is missing ${key}.`);

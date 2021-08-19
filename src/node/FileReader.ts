@@ -45,7 +45,9 @@ export default class FileReader implements Filelike {
     }
     const { bytesRead } = await this._file.read(this._buffer, 0, length, offset);
     if (bytesRead < length) {
-      throw new Error(`Attempted to read ${length} bytes at offset ${offset} but only ${bytesRead} were available`);
+      throw new Error(
+        `Attempted to read ${length} bytes at offset ${offset} but only ${bytesRead} were available`,
+      );
     }
     return this._buffer;
   }
