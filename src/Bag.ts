@@ -49,7 +49,11 @@ export default class Bag {
     this.header = await this.reader.readHeader();
     const { connectionCount, chunkCount, indexPosition } = this.header;
 
-    const result = await this.reader.readConnectionsAndChunkInfo(indexPosition, connectionCount, chunkCount);
+    const result = await this.reader.readConnectionsAndChunkInfo(
+      indexPosition,
+      connectionCount,
+      chunkCount,
+    );
 
     this.connections = new Map<number, Connection>();
 
@@ -65,7 +69,10 @@ export default class Bag {
     }
   }
 
-  async readMessages<T = unknown>(opts: ReadOptions, callback: (msg: ReadResult<T>) => void): Promise<void> {
+  async readMessages<T = unknown>(
+    opts: ReadOptions,
+    callback: (msg: ReadResult<T>) => void,
+  ): Promise<void> {
     const connections = this.connections;
 
     const startTime = opts.startTime ?? { sec: 0, nsec: 0 };
@@ -100,15 +107,31 @@ export default class Bag {
         // lazily create a reader for this connection if it doesn't exist
         connection.reader =
           connection.reader ??
-          new MessageReader(parseMessageDefinition(connection.messageDefinition), { freeze: opts.freeze });
+          new MessageReader(parseMessageDefinition(connection.messageDefinition), {
+            freeze: opts.freeze,
+          });
         message = connection.reader.readMessage<T>(data);
       }
-      return new ReadResult<T>(topic, message!, timestamp, data, chunkOffset, chunkInfos.length, opts.freeze);
+      return new ReadResult<T>(
+        topic,
+        message!,
+        timestamp,
+        data,
+        chunkOffset,
+        chunkInfos.length,
+        opts.freeze,
+      );
     }
 
     for (let i = 0; i < chunkInfos.length; i++) {
       const info = chunkInfos[i]!;
-      const messages = await this.reader.readChunkMessages(info, filteredConnections, startTime, endTime, decompress);
+      const messages = await this.reader.readChunkMessages(
+        info,
+        filteredConnections,
+        startTime,
+        endTime,
+        decompress,
+      );
       messages.forEach((msg) => callback(parseMsg(msg, i)));
     }
   }

@@ -75,7 +75,7 @@ export default class BagReader {
   async readConnectionsAndChunkInfo(
     fileOffset: number,
     connectionCount: number,
-    chunkCount: number
+    chunkCount: number,
   ): Promise<{ connections: Connection[]; chunkInfos: ChunkInfo[] }> {
     const buffer = await this._file.read(fileOffset, this._file.size() - fileOffset);
 
@@ -89,7 +89,7 @@ export default class BagReader {
       buffer.subarray(connectionBlockLength),
       chunkCount,
       fileOffset + connectionBlockLength,
-      ChunkInfo
+      ChunkInfo,
     );
 
     if (chunkCount > 0) {
@@ -110,7 +110,7 @@ export default class BagReader {
     connections: number[],
     startTime: Time,
     endTime: Time,
-    decompress: Decompress
+    decompress: Decompress,
   ): Promise<MessageData[]> {
     const start = startTime ?? { sec: 0, nsec: 0 };
     const end = endTime ?? { sec: Number.MAX_VALUE, nsec: Number.MAX_VALUE };
@@ -152,7 +152,11 @@ export default class BagReader {
     }
 
     const messages = entries.map((entry) => {
-      return this.readRecordFromBuffer(chunk.data!.subarray(entry.offset), chunk.dataOffset!, MessageData);
+      return this.readRecordFromBuffer(
+        chunk.data!.subarray(entry.offset),
+        chunk.dataOffset!,
+        MessageData,
+      );
     });
 
     return messages;
@@ -189,7 +193,7 @@ export default class BagReader {
       buffer.subarray(chunk.length),
       chunkInfo.count,
       chunkInfo.chunkPosition + chunk.length!,
-      IndexData
+      IndexData,
     );
 
     this._lastChunkInfo = chunkInfo;
@@ -202,12 +206,16 @@ export default class BagReader {
     buffer: Uint8Array,
     count: number,
     fileOffset: number,
-    cls: Constructor<T> & { opcode: number }
+    cls: Constructor<T> & { opcode: number },
   ): T[] {
     const records = [];
     let bufferOffset = 0;
     for (let i = 0; i < count; i++) {
-      const record = this.readRecordFromBuffer(buffer.subarray(bufferOffset), fileOffset + bufferOffset, cls);
+      const record = this.readRecordFromBuffer(
+        buffer.subarray(bufferOffset),
+        fileOffset + bufferOffset,
+        cls,
+      );
       // We know that .end and .offset are set by readRecordFromBuffer
       // A future enhancement is to remove the non-null assertion
       // Maybe record doesn't need to store these internall and we can return that from readRecordFromBuffer?
@@ -222,7 +230,7 @@ export default class BagReader {
   readRecordFromBuffer<T extends Record>(
     buffer: Uint8Array,
     fileOffset: number,
-    cls: Constructor<T> & { opcode: number }
+    cls: Constructor<T> & { opcode: number },
   ): T {
     const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 
