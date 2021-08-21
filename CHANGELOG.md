@@ -1,5 +1,10 @@
 ## Unreleased
 
+## 0.1.1 - 2021-08-19
+
+- Update rosmsg dependency
+- Update rosmsg-serialization dependency
+
 ## 0.1.0 - 2021-08-06
 
 First release after fork from rosbag.js
