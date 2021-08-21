@@ -12,6 +12,7 @@ import { compare, Time } from "@foxglove/rostime";
 import BagReader, { Decompress } from "./BagReader";
 import ReadResult from "./ReadResult";
 import { BagHeader, ChunkInfo, Connection, MessageData } from "./record";
+import { Filelike } from "./types";
 
 export type ReadOptions = {
   decompress?: Decompress;
@@ -22,14 +23,6 @@ export type ReadOptions = {
   freeze?: boolean;
 };
 
-// the high level rosbag interface
-// create a new bag by calling:
-// `const bag = await Bag.open('./path-to-file.bag')` in node or
-// `const bag = await Bag.open(files[0])` in the browser
-//
-// after that you can consume messages by calling
-// `await bag.readMessages({ topics: ['/foo'] },
-//    (result) => console.log(result.topic, result.message))`
 export default class Bag {
   reader: BagReader;
   header?: BagHeader;
@@ -38,8 +31,8 @@ export default class Bag {
   startTime: Time | null | undefined;
   endTime: Time | null | undefined;
 
-  constructor(bagReader: BagReader) {
-    this.reader = bagReader;
+  constructor(filelike: Filelike) {
+    this.reader = new BagReader(filelike);
     this.connections = new Map<number, Connection>();
   }
 

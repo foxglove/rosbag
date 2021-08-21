@@ -13,7 +13,6 @@ import fs from "fs";
 import lz4 from "lz4js";
 
 import Bag, { ReadOptions } from "./Bag";
-import BagReader from "./BagReader";
 import ReadResult from "./ReadResult";
 import FileReader from "./node/FileReader";
 
@@ -26,7 +25,7 @@ function getFixture(filename = FILENAME): string {
 }
 
 async function open(filename: string): Promise<Bag> {
-  const bag = new Bag(new BagReader(new FileReader(filename)));
+  const bag = new Bag(new FileReader(filename));
   await bag.open();
   return bag;
 }

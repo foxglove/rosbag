@@ -1,5 +1,4 @@
 {
-  "entryPoints": ["src/node/index.ts"],
-  "out": "docs",
-  "theme": "minimal"
+  "entryPoints": ["./src/index.ts", "./src/node/index.ts", "./src/web/index.ts"],
+  "out": "docs"
 }

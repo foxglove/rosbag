@@ -21,12 +21,12 @@ The most common way to interact with a rosbag is to read data records for a spec
 Here is an example of reading messages from a rosbag in node.js:
 
 ```typescript
-import { Bag, BagReader } from "@foxglove/rosbag";
+import { Bag } from "@foxglove/rosbag";
 import { FileReader } from "@foxglove/rosbag/node";
 
 async function logMessagesFromFooBar() {
-  // open a new bag at a given file location:
-  const bag = new Bag(new BagReader(new FileReader("../path/to/ros.bag")));
+  // open a new bag with a speific file reader
+  const bag = new Bag(new FileReader("../path/to/ros.bag"));
 
   await bag.open();
 

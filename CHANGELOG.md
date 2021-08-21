@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Remove BagReader from public interface
+
 ## 0.1.1 - 2021-08-19
 
 - Update rosmsg dependency
