@@ -1,5 +1,3 @@
 /** @module @foxglove/rosbag/web */
 
-import BlobReader from "./BlobReader";
-
-export { BlobReader };
+export { default as BlobReader } from "./BlobReader";

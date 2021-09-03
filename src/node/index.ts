@@ -1,5 +1,3 @@
 /** @module @foxglove/rosbag/node */
 
-import FileReader from "./FileReader";
-
-export { FileReader };
+export { default as FileReader } from "./FileReader";
