@@ -20,5 +20,14 @@ describe("node entrypoint", () => {
       expect(reader.size()).toBe(fs.statSync(fixture).size);
       expect(buff).toEqual(Uint8Array.from([54, 55, 56, 57, 48, 49, 50, 51, 52, 53]));
     });
+
+    it("should not clobber previous writes", async () => {
+      const reader = new FileReader(fixture);
+      const buff = await reader.read(0, 5);
+      expect(buff).toEqual(Uint8Array.from([49, 50, 51, 52, 53]));
+      const buff2 = await reader.read(5, 5);
+      expect(buff2).toEqual(Uint8Array.from([54, 55, 56, 57, 48]));
+      expect(buff).toEqual(Uint8Array.from([49, 50, 51, 52, 53]));
+    });
   });
 });
