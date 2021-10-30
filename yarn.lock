@@ -329,17 +329,17 @@
   resolved "https://registry.yarnpkg.com/@foxglove/eslint-plugin/-/eslint-plugin-0.14.0.tgz#d55b512cb86d98ebd228b44e96949867967130c5"
   integrity sha512-v+sHf5PwH9245i91nG2CO1zLjF21jsL6rhXwyObvvi29XguNum0+wJiXgem64MD6w/zbsmBx4lBYA2DAKISXAA==
 
-"@foxglove/rosmsg-serialization@^1.1.2":
-  version "1.1.2"
-  resolved "https://registry.yarnpkg.com/@foxglove/rosmsg-serialization/-/rosmsg-serialization-1.1.2.tgz#3b674dd7d1870970ab5af45ef867f471dc61b64c"
-  integrity sha512-WUk+EuowRY4OfVOm8c37rd93C/qnPynPr6xoVg9pZWxiWHCPIxD/vKSUp2KGU2KeDNNKy4YAo1XkX+1q0BtHgA==
+"@foxglove/rosmsg-serialization@^1.2.3":
+  version "1.2.3"
+  resolved "https://registry.yarnpkg.com/@foxglove/rosmsg-serialization/-/rosmsg-serialization-1.2.3.tgz#742adc7a322357b0a19aaebb4fe7c2c557f55e92"
+  integrity sha512-wXYqEtcJAXjJEKxxB18tx/3bbI2peQdbqzIWYnCCf9VwVDLk57O/fGqHLJnH5hUH4I37khE/Q0xU/JXSUrp46A==
   dependencies:
-    "@foxglove/rosmsg" "^2.0.0"
+    "@foxglove/rosmsg" "^2.0.0 || ^3.0.0"
 
-"@foxglove/rosmsg@^2.0.0":
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/@foxglove/rosmsg/-/rosmsg-2.0.0.tgz#0ae51f4408580bb25cea8e4796aebc4011f61594"
-  integrity sha512-G5PqgF9kDBayLKYBpL3stKvuiiHf5nxH0IT5XNkOC7kaTMGuhfxYxncWlgfc3bFdpvwc6NWioaJyRkQ2AG7Maw==
+"@foxglove/rosmsg@^2.0.0 || ^3.0.0":
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/@foxglove/rosmsg/-/rosmsg-3.0.0.tgz#10ce39e42dab6804977cda297d0d317649184a16"
+  integrity sha512-AAb3DMlLcuntUyEDBioDhbjdbKivC1hj7Gnu7QXX8ce+R50V8xs5sfxccsjE6N0Qs+eQxuzLhT2kW3mNXT/gbg==
   dependencies:
     md5-typescript "^1.0.5"
 
