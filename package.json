@@ -1,6 +1,6 @@
 {
   "name": "@foxglove/rosbag",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -27,8 +27,8 @@
     "docs": "typedoc"
   },
   "dependencies": {
-    "@foxglove/rosmsg": "^2.0.0",
-    "@foxglove/rosmsg-serialization": "^1.1.2",
+    "@foxglove/rosmsg": "^2.0.0 || ^3.0.0",
+    "@foxglove/rosmsg-serialization": "^1.2.3",
     "@foxglove/rostime": "^1.1.0",
     "heap": "^0.2.6"
   },
