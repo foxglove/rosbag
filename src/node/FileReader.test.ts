@@ -21,7 +21,7 @@ describe("node entrypoint", () => {
       expect(buff).toEqual(Uint8Array.from([54, 55, 56, 57, 48, 49, 50, 51, 52, 53]));
     });
 
-    it("should not clobber previous writes", async () => {
+    it("should not clobber previous reads", async () => {
       const reader = new FileReader(fixture);
       const buff = await reader.read(0, 5);
       expect(buff).toEqual(Uint8Array.from([49, 50, 51, 52, 53]));
