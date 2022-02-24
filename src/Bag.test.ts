@@ -41,6 +41,59 @@ async function fullyReadBag<T>(name: string, opts?: ReadOptions): Promise<ReadRe
   return messages;
 }
 
+describe.only("cursor", () => {
+  it("support forward iterator", async () => {
+    const filename = getFixture("example");
+    expect(fs.existsSync(filename)).toBe(true);
+    const bag = await open(filename);
+
+    console.log("start", bag.startTime);
+    console.log("end", bag.endTime);
+
+    if (!bag.startTime) {
+      throw new Error("bag does not have start time");
+    }
+
+    const forwardIterator = bag.forwardIterator({ timestamp: bag.startTime });
+
+    let message = await forwardIterator.next();
+    while (message != undefined) {
+      console.log(message);
+
+      // next
+      message = await forwardIterator.next();
+    }
+  });
+
+  it.only("support reverse iterator", async () => {
+    const filename = getFixture("example");
+    expect(fs.existsSync(filename)).toBe(true);
+    const bag = await open(filename);
+
+    console.log("start", bag.startTime);
+    console.log("end", bag.endTime);
+
+    if (!bag.endTime) {
+      throw new Error("bag does not have end time");
+    }
+
+    const iterator = bag.reverseIterator({ timestamp: bag.endTime });
+
+    let message = await iterator.next();
+    //console.log(message);
+
+    //const message2 = await iterator.next();
+    //console.log(message2);
+
+    while (message != undefined) {
+      console.log(message);
+
+      // next
+      message = await iterator.next();
+    }
+  });
+});
+
 describe("basics", () => {
   it("handles empty and non-existent bags", async () => {
     await expect(open(getFixture("NON_EXISTENT_FILE"))).rejects.toThrow(

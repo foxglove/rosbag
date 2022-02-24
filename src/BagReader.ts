@@ -15,7 +15,7 @@ import { Filelike, Constructor } from "./types";
 // Use little endian to read values in dataview
 const LITTLE_ENDIAN = true;
 
-interface ChunkReadResult {
+export interface ChunkReadResult {
   chunk: Chunk;
   indices: IndexData[];
 }

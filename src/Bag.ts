@@ -10,7 +10,9 @@ import { MessageReader } from "@foxglove/rosmsg-serialization";
 import { compare, Time } from "@foxglove/rostime";
 
 import BagReader, { Decompress } from "./BagReader";
+import { ForwardIterator } from "./ForwardIterator";
 import ReadResult from "./ReadResult";
+import { ReverseIterator } from "./ReverseIterator";
 import { BagHeader, ChunkInfo, Connection, MessageData } from "./record";
 import { Filelike } from "./types";
 
@@ -60,6 +62,14 @@ export default class Bag {
       this.startTime = this.chunkInfos[0]!.startTime;
       this.endTime = this.chunkInfos[chunkCount - 1]!.endTime;
     }
+  }
+
+  forwardIterator(opt: { timestamp: Time }): ForwardIterator {
+    return new ForwardIterator({ timestamp: opt.timestamp, bag: this });
+  }
+
+  reverseIterator(opt: { timestamp: Time }): ReverseIterator {
+    return new ReverseIterator({ timestamp: opt.timestamp, bag: this });
   }
 
   async readMessages<T = unknown>(
