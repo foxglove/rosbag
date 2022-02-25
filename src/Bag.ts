@@ -64,12 +64,12 @@ export default class Bag {
     }
   }
 
-  forwardIterator(opt: { timestamp: Time }): ForwardIterator {
-    return new ForwardIterator({ timestamp: opt.timestamp, bag: this });
+  forwardIterator(opt: { timestamp: Time; topics?: string[] }): ForwardIterator {
+    return new ForwardIterator({ timestamp: opt.timestamp, topics: opt.topics, bag: this });
   }
 
-  reverseIterator(opt: { timestamp: Time }): ReverseIterator {
-    return new ReverseIterator({ timestamp: opt.timestamp, bag: this });
+  reverseIterator(opt: { timestamp: Time; topics?: string[] }): ReverseIterator {
+    return new ReverseIterator({ timestamp: opt.timestamp, topics: opt.topics, bag: this });
   }
 
   async readMessages<T = unknown>(

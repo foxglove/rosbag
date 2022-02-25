@@ -3,16 +3,28 @@ import Heap from "heap";
 
 import type Bag from "./Bag";
 import { ChunkReadResult } from "./BagReader";
-import { MessageData } from "./record";
+import { ChunkInfo, MessageData } from "./record";
 
 class ForwardIterator {
   private bag: Bag;
+  private connectionIds?: Set<number>;
   private heap: Heap<{ time: Time; offset: number; chunkReadResult: ChunkReadResult }>;
   private currentTimestamp: Time;
 
-  constructor(opt: { timestamp: Time; bag: Bag }) {
+  constructor(opt: { timestamp: Time; bag: Bag; topics?: string[] }) {
     this.currentTimestamp = opt.timestamp;
     this.bag = opt.bag;
+
+    // if we want to filter by topic, make a list of connection ids to allow
+    if (opt.topics) {
+      const topics = opt.topics;
+      this.connectionIds = new Set();
+      for (const [id, connection] of this.bag.connections) {
+        if (topics.includes(connection.topic)) {
+          this.connectionIds.add(id);
+        }
+      }
+    }
 
     this.heap = new Heap((a, b) => {
       return compare(a.time, b.time);
@@ -22,12 +34,48 @@ class ForwardIterator {
   async loadNext(): Promise<void> {
     const stamp = this.currentTimestamp;
 
-    const chunkInfos = this.bag.chunkInfos.filter((info) => {
+    // These are all chunks that contain our connections
+    let candidateChunkInfos = this.bag.chunkInfos;
+
+    const connectionIds = this.connectionIds;
+    if (connectionIds) {
+      candidateChunkInfos = candidateChunkInfos.filter((info) => {
+        return info.connections.find((conn) => {
+          return connectionIds.has(conn.conn);
+        });
+      });
+    }
+
+    if (candidateChunkInfos.length === 0) {
+      return;
+    }
+
+    let chunkInfos = candidateChunkInfos.filter((info) => {
       return compare(info.startTime, stamp) <= 0 && compare(stamp, info.endTime) <= 0;
     });
 
+    // No chunks contain our stamp, get the first one after our stamp
     if (chunkInfos.length === 0) {
-      return;
+      const future = candidateChunkInfos.reduce((prev: ChunkInfo | undefined, info) => {
+        if (!prev) {
+          if (compare(stamp, info.startTime) < 0) {
+            return info;
+          }
+          return undefined;
+        }
+
+        if (compare(prev.startTime, info.startTime) < 0) {
+          return prev;
+        }
+
+        return info;
+      }, undefined);
+
+      if (!future) {
+        return;
+      }
+
+      chunkInfos = [future];
     }
 
     // `T` is the current timestamp.
@@ -57,7 +105,7 @@ class ForwardIterator {
     end = addTime(end, { sec: 0, nsec: 1 });
 
     // All chunks with start time between stamp and end
-    const terminalChunks = this.bag.chunkInfos.filter((info) => {
+    const terminalChunks = candidateChunkInfos.filter((info) => {
       return compare(stamp, info.startTime) < 0 && compare(info.startTime, end) < 0;
     });
 
@@ -75,6 +123,9 @@ class ForwardIterator {
       const result = await this.bag.reader.readChunk(chunkInfo, {});
 
       for (const indexData of result.indices) {
+        if (this.connectionIds && !this.connectionIds.has(indexData.conn)) {
+          continue;
+        }
         for (const indexEntry of indexData.indices ?? []) {
           // skip any time that is before our current timestamp or after end, we will never iterate to those
           if (compare(indexEntry.time, stamp) < 0 && compare(indexEntry.time, end) > 0) {
