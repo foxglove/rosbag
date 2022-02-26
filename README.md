@@ -30,8 +30,7 @@ async function logMessagesFromFooBar() {
 
   await bag.open();
 
-  // read all messages from both the '/foo' and '/bar' topics:
-  await bag.readMessages({ topics: ["/foo", "/bar"] }, (result) => {
+  for await (const result of bag.forwardIterator({ topics: ["/foo", "/bar"] })) {
     // topic is the topic the data record was in
     // in this case it will be either '/foo' or '/bar'
     console.log(result.topic);
@@ -39,7 +38,7 @@ async function logMessagesFromFooBar() {
     // message is the parsed payload
     // this payload will likely differ based on the topic
     console.log(result.message);
-  });
+  }
 }
 
 logMessagesFromFooBar();
@@ -62,9 +61,6 @@ class Bag {
 
   // an array of ChunkInfos describing the chunks within the bag
   chunkInfos: Array<ChunkInfo>,
-
-  // call to consume from the bag - see 'Consuming messages from the bag instance' below
-  readMessages(options: BagOptions, cb: (result: ReadResult) => void) => Promise<void>
 }
 ```
 

@@ -2,22 +2,33 @@ import { compare, Time, add as addTime } from "@foxglove/rostime";
 import Heap from "heap";
 
 import type Bag from "./Bag";
-import { ChunkReadResult } from "./BagReader";
+import { ChunkReadResult, Decompress } from "./BagReader";
 import { ChunkInfo, MessageData } from "./record";
+
+type IteratorConstructorArgs = {
+  position: Time;
+  bag: Bag;
+  topics?: string[];
+  decompress: Decompress;
+};
 
 class ForwardIterator {
   private bag: Bag;
   private connectionIds?: Set<number>;
   private heap: Heap<{ time: Time; offset: number; chunkReadResult: ChunkReadResult }>;
-  private currentTimestamp: Time;
+  private position: Time;
+  private decompress: Decompress;
 
-  constructor(opt: { timestamp: Time; bag: Bag; topics?: string[] }) {
-    this.currentTimestamp = opt.timestamp;
-    this.bag = opt.bag;
+  private cachedChunkReadResults = new Map<number, ChunkReadResult>();
+
+  constructor(args: IteratorConstructorArgs) {
+    this.position = args.position;
+    this.bag = args.bag;
+    this.decompress = args.decompress;
 
     // if we want to filter by topic, make a list of connection ids to allow
-    if (opt.topics) {
-      const topics = opt.topics;
+    if (args.topics) {
+      const topics = args.topics;
       this.connectionIds = new Set();
       for (const [id, connection] of this.bag.connections) {
         if (topics.includes(connection.topic)) {
@@ -31,8 +42,8 @@ class ForwardIterator {
     });
   }
 
-  async loadNext(): Promise<void> {
-    const stamp = this.currentTimestamp;
+  private async loadNext(): Promise<void> {
+    let stamp = this.position;
 
     // These are all chunks that contain our connections
     let candidateChunkInfos = this.bag.chunkInfos;
@@ -50,33 +61,63 @@ class ForwardIterator {
       return;
     }
 
+    // Lookup chunks which contain our stamp inclusive of startTime and endTime
     let chunkInfos = candidateChunkInfos.filter((info) => {
       return compare(info.startTime, stamp) <= 0 && compare(stamp, info.endTime) <= 0;
     });
 
     // No chunks contain our stamp, get the first one after our stamp
     if (chunkInfos.length === 0) {
-      const future = candidateChunkInfos.reduce((prev: ChunkInfo | undefined, info) => {
-        if (!prev) {
-          if (compare(stamp, info.startTime) < 0) {
-            return info;
+      type ReducedValue = {
+        time?: Time;
+        chunkInfos: ChunkInfo[];
+      };
+      const reducedValue = candidateChunkInfos.reduce<ReducedValue>(
+        (prev, info) => {
+          const time = prev.time;
+
+          if (compare(stamp, info.startTime) >= 0) {
+            return prev;
           }
-          return undefined;
-        }
 
-        if (compare(prev.startTime, info.startTime) < 0) {
-          return prev;
-        }
+          if (!time) {
+            return {
+              time: info.startTime,
+              chunkInfos: [info],
+            };
+          }
 
-        return info;
-      }, undefined);
+          if (compare(time, info.startTime) < 0) {
+            return prev;
+          } else if (compare(time, info.startTime) === 0) {
+            prev.chunkInfos.push(info);
+            return prev;
+          }
 
-      if (!future) {
+          return {
+            time: info.startTime,
+            chunkInfos: [info],
+          };
+        },
+        { time: undefined, chunkInfos: [] },
+      );
+
+      if (!reducedValue.time) {
         return;
       }
 
-      chunkInfos = [future];
+      // update the stamp to our chunk start
+      stamp = reducedValue.time;
+      chunkInfos = reducedValue.chunkInfos;
     }
+
+    // _ T
+    // A    [-----]
+    // B           [----]
+
+    // _ T
+    // A [----]
+    // B       [----]
 
     // `T` is the current timestamp.
     // Here we see some possible chunk ranges.
@@ -92,70 +133,82 @@ class ForwardIterator {
     // We find all other chunks where their start time is between T and TE
     // The earliest of these start times is the final TE
 
-    // Get the earliest end time across all matching chunks
     let end = chunkInfos[0]!.endTime;
     for (const info of chunkInfos) {
-      if (compare(info.endTime, end) < 0) {
+      if (compare(info.endTime, end) > 0) {
         end = info.endTime;
       }
     }
 
-    // fixme - we want end to be 1 nanosecond after that?
-    // otherwise we are setting the same end
+    // add 1 nsec to make end 1 past the end
     end = addTime(end, { sec: 0, nsec: 1 });
 
-    // All chunks with start time between stamp and end
-    const terminalChunks = candidateChunkInfos.filter((info) => {
-      return compare(stamp, info.startTime) < 0 && compare(info.startTime, end) < 0;
-    });
-
-    // get the earliest of those start times as the new end
-    for (const info of terminalChunks) {
-      if (compare(info.startTime, end) < 0) {
+    // There might be chunks that start after our stamp, we set end to the start
+    // time of any of those since they are not part of the chunks we are reading.
+    for (const info of candidateChunkInfos) {
+      if (compare(stamp, info.startTime) < 0 && compare(info.startTime, end) < 0) {
         end = info.startTime;
       }
     }
 
-    this.currentTimestamp = end;
+    this.position = end;
 
     const heap = this.heap;
+
+    const newCache = new Map<number, ChunkReadResult>();
+
     for (const chunkInfo of chunkInfos) {
-      const result = await this.bag.reader.readChunk(chunkInfo, {});
+      let result = this.cachedChunkReadResults.get(chunkInfo.chunkPosition);
+      if (!result) {
+        result = await this.bag.reader.readChunk(chunkInfo, this.decompress);
+      }
+
+      // Keep chunk read results for chunks where end is in the chunk
+      // End is the next position we will read so we don't need to re-read the chunk
+      if (compare(chunkInfo.startTime, end) <= 0 && compare(chunkInfo.endTime, end) >= 0) {
+        newCache.set(chunkInfo.chunkPosition, result);
+      }
 
       for (const indexData of result.indices) {
         if (this.connectionIds && !this.connectionIds.has(indexData.conn)) {
           continue;
         }
         for (const indexEntry of indexData.indices ?? []) {
-          // skip any time that is before our current timestamp or after end, we will never iterate to those
-          if (compare(indexEntry.time, stamp) < 0 && compare(indexEntry.time, end) > 0) {
+          // ensure: stamp <= entry time < end
+          if (compare(indexEntry.time, stamp) < 0 || compare(indexEntry.time, end) >= 0) {
             continue;
           }
           heap.push({ time: indexEntry.time, offset: indexEntry.offset, chunkReadResult: result });
         }
       }
     }
+
+    this.cachedChunkReadResults = newCache;
   }
 
-  async next(): Promise<MessageData | undefined> {
-    if (!this.heap.front()) {
-      // there are no more items, load more
-      await this.loadNext();
-    }
+  [Symbol.asyncIterator](): AsyncIterator<MessageData | undefined> {
+    return {
+      next: async () => {
+        // there are no more items, load more
+        if (!this.heap.front()) {
+          await this.loadNext();
+        }
 
-    const item = this.heap.pop();
-    if (!item) {
-      return undefined;
-    }
+        const item = this.heap.pop();
+        if (!item) {
+          return { done: true, value: undefined };
+        }
 
-    const chunk = item.chunkReadResult.chunk;
-    const read = this.bag.reader.readRecordFromBuffer(
-      chunk.data!.subarray(item.offset),
-      chunk.dataOffset!,
-      MessageData,
-    );
+        const chunk = item.chunkReadResult.chunk;
+        const read = this.bag.reader.readRecordFromBuffer(
+          chunk.data!.subarray(item.offset),
+          chunk.dataOffset!,
+          MessageData,
+        );
 
-    return read;
+        return { done: false, value: read };
+      },
+    };
   }
 }
 

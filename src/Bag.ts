@@ -25,6 +25,16 @@ export type ReadOptions = {
   freeze?: boolean;
 };
 
+export type BagOpt = {
+  decompress?: Decompress;
+  noParse?: boolean;
+};
+
+export type IteratorOpt = {
+  position?: Time;
+  topics?: string[];
+};
+
 export default class Bag {
   reader: BagReader;
   header?: BagHeader;
@@ -33,9 +43,12 @@ export default class Bag {
   startTime: Time | null | undefined;
   endTime: Time | null | undefined;
 
-  constructor(filelike: Filelike) {
+  private bagOpt: BagOpt;
+
+  constructor(filelike: Filelike, opt?: BagOpt) {
     this.reader = new BagReader(filelike);
     this.connections = new Map<number, Connection>();
+    this.bagOpt = opt ?? {};
   }
 
   // if the bag is manually created with the constructor, you must call `await open()` on the bag
@@ -64,14 +77,39 @@ export default class Bag {
     }
   }
 
-  forwardIterator(opt: { timestamp: Time; topics?: string[] }): ForwardIterator {
-    return new ForwardIterator({ timestamp: opt.timestamp, topics: opt.topics, bag: this });
+  forwardIterator(opt?: IteratorOpt): ForwardIterator {
+    const topics = opt?.topics;
+    const position = opt?.position ?? this.startTime;
+    if (!position) {
+      throw new Error("no timestamp");
+    }
+    return new ForwardIterator({
+      position,
+      topics,
+      bag: this,
+      decompress: this.bagOpt.decompress ?? {},
+    });
   }
 
-  reverseIterator(opt: { timestamp: Time; topics?: string[] }): ReverseIterator {
-    return new ReverseIterator({ timestamp: opt.timestamp, topics: opt.topics, bag: this });
+  reverseIterator(opt?: IteratorOpt): ReverseIterator {
+    const topics = opt?.topics;
+    const position = opt?.position ?? this.endTime;
+    if (!position) {
+      throw new Error("no timestamp");
+    }
+    return new ReverseIterator({
+      position,
+      topics,
+      bag: this,
+      decompress: this.bagOpt.decompress ?? {},
+    });
   }
 
+  /**
+   * @deprecated Prefer forwardIterator or reverseIterator
+   * @param opts
+   * @param callback
+   */
   async readMessages<T = unknown>(
     opts: ReadOptions,
     callback: (msg: ReadResult<T>) => void,

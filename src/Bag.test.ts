@@ -41,7 +41,9 @@ async function fullyReadBag<T>(name: string, opts?: ReadOptions): Promise<ReadRe
   return messages;
 }
 
-describe.only("cursor", () => {
+// fixme - real tests - reuse those below
+/*
+describe("cursor", () => {
   it("support forward iterator", async () => {
     const filename = getFixture("example");
     expect(fs.existsSync(filename)).toBe(true);
@@ -54,18 +56,13 @@ describe.only("cursor", () => {
       throw new Error("bag does not have start time");
     }
 
-    const forwardIterator = bag.forwardIterator({ timestamp: bag.startTime });
-
-    let message = await forwardIterator.next();
-    while (message != undefined) {
-      console.log(message);
-
-      // next
-      message = await forwardIterator.next();
+    const iterator = bag.forwardIterator({ position: bag.startTime });
+    for await (const result of iterator) {
+      console.log(result);
     }
   });
 
-  it.only("support reverse iterator", async () => {
+  it("support reverse iterator", async () => {
     const filename = getFixture("example");
     expect(fs.existsSync(filename)).toBe(true);
     const bag = await open(filename);
@@ -77,24 +74,15 @@ describe.only("cursor", () => {
       throw new Error("bag does not have end time");
     }
 
-    const iterator = bag.reverseIterator({ timestamp: bag.endTime });
-
-    let message = await iterator.next();
-    //console.log(message);
-
-    //const message2 = await iterator.next();
-    //console.log(message2);
-
-    while (message != undefined) {
-      console.log(message);
-
-      // next
-      message = await iterator.next();
+    const iterator = bag.reverseIterator({ position: bag.endTime });
+    for await (const result of iterator) {
+      console.log(result);
     }
   });
 });
+*/
 
-describe("basics", () => {
+describe("Bag", () => {
   it("handles empty and non-existent bags", async () => {
     await expect(open(getFixture("NON_EXISTENT_FILE"))).rejects.toThrow(
       "no such file or directory",
@@ -102,9 +90,7 @@ describe("basics", () => {
     await expect(open(getFixture("empty-file"))).rejects.toThrow("Attempted to read 13 bytes");
     await expect(fullyReadBag("no-messages")).resolves.toEqual([]);
   });
-});
 
-describe("rosbag - high-level api", () => {
   const testNumberOfMessages = (
     name: string,
     expected: number,
