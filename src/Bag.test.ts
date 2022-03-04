@@ -41,47 +41,6 @@ async function fullyReadBag<T>(name: string, opts?: ReadOptions): Promise<ReadRe
   return messages;
 }
 
-// fixme - real tests - reuse those below
-/*
-describe("cursor", () => {
-  it("support forward iterator", async () => {
-    const filename = getFixture("example");
-    expect(fs.existsSync(filename)).toBe(true);
-    const bag = await open(filename);
-
-    console.log("start", bag.startTime);
-    console.log("end", bag.endTime);
-
-    if (!bag.startTime) {
-      throw new Error("bag does not have start time");
-    }
-
-    const iterator = bag.forwardIterator({ position: bag.startTime });
-    for await (const result of iterator) {
-      console.log(result);
-    }
-  });
-
-  it("support reverse iterator", async () => {
-    const filename = getFixture("example");
-    expect(fs.existsSync(filename)).toBe(true);
-    const bag = await open(filename);
-
-    console.log("start", bag.startTime);
-    console.log("end", bag.endTime);
-
-    if (!bag.endTime) {
-      throw new Error("bag does not have end time");
-    }
-
-    const iterator = bag.reverseIterator({ position: bag.endTime });
-    for await (const result of iterator) {
-      console.log(result);
-    }
-  });
-});
-*/
-
 describe("Bag", () => {
   it("handles empty and non-existent bags", async () => {
     await expect(open(getFixture("NON_EXISTENT_FILE"))).rejects.toThrow(

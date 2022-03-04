@@ -40,8 +40,8 @@ export default class Bag {
   header?: BagHeader;
   connections: Map<number, Connection>;
   chunkInfos: ChunkInfo[] = [];
-  startTime: Time | null | undefined;
-  endTime: Time | null | undefined;
+  startTime?: Time;
+  endTime?: Time;
 
   private bagOpt: BagOpt;
 
