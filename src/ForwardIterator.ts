@@ -1,36 +1,31 @@
 import { compare, Time, add as addTime } from "@foxglove/rostime";
 import Heap from "heap";
 
-import type Bag from "./Bag";
-import { ChunkReadResult, Decompress } from "./BagReader";
+import { IBagReader } from "./IBagReader";
 import { ChunkInfo, MessageData } from "./record";
-
-type IteratorConstructorArgs = {
-  position: Time;
-  bag: Bag;
-  topics?: string[];
-  decompress: Decompress;
-};
+import { IteratorConstructorArgs, Decompress, ChunkReadResult } from "./types";
 
 class ForwardIterator {
-  private bag: Bag;
   private connectionIds?: Set<number>;
   private heap: Heap<{ time: Time; offset: number; chunkReadResult: ChunkReadResult }>;
   private position: Time;
   private decompress: Decompress;
+  private chunkInfos: ChunkInfo[];
+  private reader: IBagReader;
 
   private cachedChunkReadResults = new Map<number, ChunkReadResult>();
 
   constructor(args: IteratorConstructorArgs) {
     this.position = args.position;
-    this.bag = args.bag;
     this.decompress = args.decompress;
+    this.reader = args.reader;
+    this.chunkInfos = args.chunkInfos;
 
     // if we want to filter by topic, make a list of connection ids to allow
     if (args.topics) {
       const topics = args.topics;
       this.connectionIds = new Set();
-      for (const [id, connection] of this.bag.connections) {
+      for (const [id, connection] of args.connections) {
         if (topics.includes(connection.topic)) {
           this.connectionIds.add(id);
         }
@@ -42,12 +37,19 @@ class ForwardIterator {
     });
   }
 
+  // Load the next set of messages into the heap.
   private async loadNext(): Promise<void> {
     let stamp = this.position;
 
-    // These are all chunks that contain our connections
-    let candidateChunkInfos = this.bag.chunkInfos;
+    // These are all chunks that we can consider for iteration.
+    // Only consider chunks with an endTime after or equal to our position.
+    // Chunks before our position are not part of forward iteration.
+    let candidateChunkInfos = this.chunkInfos.filter((info) => {
+      return compare(info.endTime, stamp) >= 0;
+    });
 
+    // If we only want specific connections (i.e. topics), then we further filter
+    // to only the chunks with those topics
     const connectionIds = this.connectionIds;
     if (connectionIds) {
       candidateChunkInfos = candidateChunkInfos.filter((info) => {
@@ -66,73 +68,46 @@ class ForwardIterator {
       return compare(info.startTime, stamp) <= 0 && compare(stamp, info.endTime) <= 0;
     });
 
-    // No chunks contain our stamp, get the first one after our stamp
+    // No chunks contain our stamp, find the next chunk(s) after our stamp
     if (chunkInfos.length === 0) {
-      type ReducedValue = {
-        time?: Time;
-        chunkInfos: ChunkInfo[];
-      };
-      const reducedValue = candidateChunkInfos.reduce<ReducedValue>(
-        (prev, info) => {
-          const time = prev.time;
+      let newStamp = stamp;
+      for (const candidateChunk of candidateChunkInfos) {
+        // The first chunk we see sets the new stamp
+        if (newStamp === stamp) {
+          chunkInfos = [candidateChunk];
+          newStamp = candidateChunk.startTime;
+          continue;
+        }
 
-          if (compare(stamp, info.startTime) >= 0) {
-            return prev;
-          }
+        const compareResult = compare(newStamp, candidateChunk.startTime);
 
-          if (!time) {
-            return {
-              time: info.startTime,
-              chunkInfos: [info],
-            };
-          }
-
-          if (compare(time, info.startTime) < 0) {
-            return prev;
-          } else if (compare(time, info.startTime) === 0) {
-            prev.chunkInfos.push(info);
-            return prev;
-          }
-
-          return {
-            time: info.startTime,
-            chunkInfos: [info],
-          };
-        },
-        { time: undefined, chunkInfos: [] },
-      );
-
-      if (!reducedValue.time) {
-        return;
+        // If the chunk starts after our new stamp it is ignored since the existing
+        // chunks are closer to the stamp.
+        if (compareResult < 0) {
+          continue;
+        }
+        // If the chunk start is equal to the new stamp, add to chunk infos
+        else if (compareResult === 0) {
+          chunkInfos.push(candidateChunk);
+        }
+        // If the chunk start is before the new stamp it is closer to the stamp.
+        // Make that chunk the new stamp and selected chunk.
+        else if (compareResult > 0) {
+          chunkInfos = [candidateChunk];
+          newStamp = candidateChunk.startTime;
+        }
       }
 
       // update the stamp to our chunk start
-      stamp = reducedValue.time;
-      chunkInfos = reducedValue.chunkInfos;
+      stamp = newStamp;
     }
 
-    // _ T
-    // A    [-----]
-    // B           [----]
+    // End of file or no more candidates
+    if (chunkInfos.length === 0) {
+      return;
+    }
 
-    // _ T
-    // A [----]
-    // B       [----]
-
-    // `T` is the current timestamp.
-    // Here we see some possible chunk ranges.
-    // A [------T-----]
-    // B      [----------]
-    // C              [-----]
-    // D          [------]
-    // E         [---]
-    //
-    // A & B include T
-    // To determine the maximum time we can iterate to until we need to load more.
-    // We take all the earliest end stamp (TE) of the matching chunks (A & B)
-    // We find all other chunks where their start time is between T and TE
-    // The earliest of these start times is the final TE
-
+    // The end time is the maximum end time of all the chunks we've selected
     let end = chunkInfos[0]!.endTime;
     for (const info of chunkInfos) {
       if (compare(info.endTime, end) > 0) {
@@ -140,27 +115,25 @@ class ForwardIterator {
       }
     }
 
-    // add 1 nsec to make end 1 past the end
-    end = addTime(end, { sec: 0, nsec: 1 });
-
-    // There might be chunks that start after our stamp, we set end to the start
-    // time of any of those since they are not part of the chunks we are reading.
+    // There might be some candidate chunks which start after our stamp and before the end time.
+    // Since we plan to read to _end_, we need to include these chunks as well.
     for (const info of candidateChunkInfos) {
-      if (compare(stamp, info.startTime) < 0 && compare(info.startTime, end) < 0) {
-        end = info.startTime;
+      // NOTE: startTime is strictly greater than stamp because start times equal to stamp
+      // would have already been considered and we should not include chunks twice.
+      if (compare(info.startTime, stamp) > 0 && compare(info.startTime, end) <= 0) {
+        chunkInfos.push(info);
       }
     }
 
-    this.position = end;
+    // Add 1 nsec to make end 1 past the end for the next read
+    this.position = end = addTime(end, { sec: 0, nsec: 1 });
 
     const heap = this.heap;
-
     const newCache = new Map<number, ChunkReadResult>();
-
     for (const chunkInfo of chunkInfos) {
       let result = this.cachedChunkReadResults.get(chunkInfo.chunkPosition);
       if (!result) {
-        result = await this.bag.reader.readChunk(chunkInfo, this.decompress);
+        result = await this.reader.readChunk(chunkInfo, this.decompress);
       }
 
       // Keep chunk read results for chunks where end is in the chunk
@@ -186,10 +159,13 @@ class ForwardIterator {
     this.cachedChunkReadResults = newCache;
   }
 
-  [Symbol.asyncIterator](): AsyncIterator<MessageData | undefined> {
+  /**
+   * @returns An AsyncIterator for serialized message data from the forward iterator
+   */
+  [Symbol.asyncIterator](): AsyncIterator<MessageData> {
     return {
       next: async () => {
-        // there are no more items, load more
+        // there are no more items, try loading more
         if (!this.heap.front()) {
           await this.loadNext();
         }
@@ -200,7 +176,7 @@ class ForwardIterator {
         }
 
         const chunk = item.chunkReadResult.chunk;
-        const read = this.bag.reader.readRecordFromBuffer(
+        const read = this.reader.readRecordFromBuffer(
           chunk.data!.subarray(item.offset),
           chunk.dataOffset!,
           MessageData,

@@ -10,19 +10,10 @@ import { compare, isGreaterThan, Time } from "@foxglove/rostime";
 import { extractFields } from "./fields";
 import nmerge from "./nmerge";
 import { Record, BagHeader, Chunk, ChunkInfo, Connection, IndexData, MessageData } from "./record";
-import { Filelike, Constructor } from "./types";
+import type { Filelike, Constructor, Decompress, ChunkReadResult } from "./types";
 
 // Use little endian to read values in dataview
 const LITTLE_ENDIAN = true;
-
-export interface ChunkReadResult {
-  chunk: Chunk;
-  indices: IndexData[];
-}
-
-export type Decompress = {
-  [compression: string]: (buffer: Uint8Array, size: number) => Uint8Array;
-};
 
 const HEADER_READAHEAD = 4096;
 const HEADER_OFFSET = 13;
@@ -96,7 +87,7 @@ export default class BagReader {
       for (let i = 0; i < chunkCount - 1; i++) {
         chunkInfos[i]!.nextChunk = chunkInfos[i + 1];
       }
-      chunkInfos[chunkCount - 1]!.nextChunk = null;
+      chunkInfos[chunkCount - 1]!.nextChunk = undefined;
     }
 
     return { connections, chunkInfos };

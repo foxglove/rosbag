@@ -5,6 +5,11 @@
 // found in the LICENSE file in the root directory of this source tree.
 // You may not use this file except in compliance with the License.
 
+import type { Time } from "@foxglove/rostime";
+
+import type { IBagReader } from "./IBagReader";
+import type { Chunk, ChunkInfo, Connection, IndexData } from "./record";
+
 export type RawFields = { [k: string]: Uint8Array };
 
 export interface Constructor<T> {
@@ -15,3 +20,22 @@ export interface Filelike {
   read(offset: number, length: number): Promise<Uint8Array>;
   size(): number;
 }
+
+export type Decompress = {
+  [compression: string]: (buffer: Uint8Array, size: number) => Uint8Array;
+};
+
+export type ChunkReadResult = {
+  chunk: Chunk;
+  indices: IndexData[];
+};
+
+export type IteratorConstructorArgs = {
+  position: Time;
+  connections: Map<number, Connection>;
+  chunkInfos: ChunkInfo[];
+  reader: IBagReader;
+  decompress: Decompress;
+
+  topics?: string[];
+};
