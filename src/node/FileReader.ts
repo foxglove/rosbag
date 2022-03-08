@@ -14,13 +14,11 @@ export default class FileReader implements Filelike {
   _filename: string;
   _file?: fs.FileHandle;
   _size: number;
-  _buffer: Uint8Array;
 
   constructor(filename: string) {
     this._filename = filename;
     this._file = undefined;
     this._size = 0;
-    this._buffer = new Uint8Array(0);
   }
 
   // open a file for reading
@@ -34,22 +32,20 @@ export default class FileReader implements Filelike {
   }
 
   // read length (bytes) starting from offset (bytes)
-  // callback(err, buffer)
   async read(offset: number, length: number): Promise<Uint8Array> {
     if (this._file == null) {
       await this._open();
       return await this.read(offset, length);
     }
-    if (length > this._buffer.byteLength) {
-      this._buffer = new Uint8Array(length);
-    }
-    const { bytesRead } = await this._file.read(this._buffer, 0, length, offset);
+
+    const buffer = new Uint8Array(length);
+    const { bytesRead } = await this._file.read(buffer, 0, length, offset);
     if (bytesRead < length) {
       throw new Error(
         `Attempted to read ${length} bytes at offset ${offset} but only ${bytesRead} were available`,
       );
     }
-    return this._buffer;
+    return buffer;
   }
 
   // return the size of the file
