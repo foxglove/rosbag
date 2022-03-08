@@ -83,6 +83,7 @@ export abstract class BaseIterator implements MessageIterator {
 
       const event: MessageEvent = {
         topic,
+        connectionId: messageData.conn,
         timestamp: time,
         data,
         message: this.parse?.(data, connection),
