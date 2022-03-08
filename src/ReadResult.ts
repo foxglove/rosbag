@@ -24,7 +24,8 @@ export default class ReadResult<T> {
     data: Uint8Array,
     chunkOffset: number,
     totalChunks: number,
-    freeze?: boolean | null | undefined,
+    // eslint-disable-next-line @foxglove/no-boolean-parameters
+    freeze?: boolean,
   ) {
     // string: the topic the message was on
     this.topic = topic;
