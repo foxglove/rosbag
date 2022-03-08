@@ -45,6 +45,7 @@ export type MessageEvent = {
   topic: string;
   timestamp: Time;
   data: Uint8Array;
+  connectionId: number;
 
   message?: unknown;
 };
