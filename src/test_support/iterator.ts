@@ -122,6 +122,7 @@ export function generateFixtures(input: FixtureInput): FixtureOutput {
         topic,
         timestamp: { sec: 0, nsec: msg.time },
         data: new Uint8Array([msg.value]),
+        connectionId: connId,
       });
     }
 
