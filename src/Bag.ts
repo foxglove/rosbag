@@ -14,7 +14,7 @@ import { ForwardIterator } from "./ForwardIterator";
 import ReadResult from "./ReadResult";
 import { ReverseIterator } from "./ReverseIterator";
 import { BagHeader, ChunkInfo, Connection, MessageData } from "./record";
-import { Filelike, Decompress } from "./types";
+import { Filelike, Decompress, MessageIterator, IteratorConstructorArgs } from "./types";
 
 export type ReadOptions = {
   decompress?: Decompress;
@@ -30,9 +30,10 @@ export type BagOpt = {
   noParse?: boolean;
 };
 
-export type IteratorOpt = {
-  position?: Time;
+export type MessageIteratorOpt = {
+  start?: Time;
   topics?: string[];
+  reverse?: boolean;
 };
 
 export default class Bag {
@@ -77,40 +78,56 @@ export default class Bag {
     }
   }
 
-  forwardIterator(opt?: IteratorOpt): ForwardIterator {
+  messageIterator(opt?: MessageIteratorOpt): MessageIterator {
     const topics = opt?.topics;
-    const position = opt?.position ?? this.startTime;
-    if (!position) {
-      throw new Error("no timestamp");
-    }
-    return new ForwardIterator({
-      position,
-      topics,
-      reader: this.reader,
-      chunkInfos: this.chunkInfos,
-      connections: this.connections,
-      decompress: this.bagOpt.decompress ?? {},
-    });
-  }
 
-  reverseIterator(opt?: IteratorOpt): ReverseIterator {
-    const topics = opt?.topics;
-    const position = opt?.position ?? this.endTime;
-    if (!position) {
-      throw new Error("no timestamp");
+    let parse: IteratorConstructorArgs["parse"] | undefined;
+
+    if (this.bagOpt.noParse !== true) {
+      parse = (data, connection) => {
+        // lazily create a reader for this connection if it doesn't exist
+        connection.reader ??= new MessageReader(
+          parseMessageDefinition(connection.messageDefinition),
+        );
+        return connection.reader.readMessage(data);
+      };
     }
-    return new ReverseIterator({
-      position,
-      topics,
-      reader: this.reader,
-      connections: this.connections,
-      chunkInfos: this.chunkInfos,
-      decompress: this.bagOpt.decompress ?? {},
-    });
+
+    if (opt?.reverse === true) {
+      const position = opt?.start ?? this.endTime;
+      if (!position) {
+        throw new Error("no timestamp");
+      }
+
+      return new ReverseIterator({
+        position,
+        topics,
+        reader: this.reader,
+        connections: this.connections,
+        chunkInfos: this.chunkInfos,
+        decompress: this.bagOpt.decompress ?? {},
+        parse,
+      });
+    } else {
+      const position = opt?.start ?? this.startTime;
+      if (!position) {
+        throw new Error("no timestamp");
+      }
+
+      return new ForwardIterator({
+        position,
+        topics,
+        reader: this.reader,
+        chunkInfos: this.chunkInfos,
+        connections: this.connections,
+        decompress: this.bagOpt.decompress ?? {},
+        parse,
+      });
+    }
   }
 
   /**
-   * @deprecated Prefer forwardIterator or reverseIterator
+   * @deprecated Prefer the messageIterator method instead.
    * @param opts
    * @param callback
    */

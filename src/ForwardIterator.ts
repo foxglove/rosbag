@@ -1,44 +1,17 @@
-import { compare, Time, add as addTime } from "@foxglove/rostime";
-import Heap from "heap";
+import { compare, add as addTime } from "@foxglove/rostime";
 
-import { IBagReader } from "./IBagReader";
-import { ChunkInfo, MessageData } from "./record";
-import { IteratorConstructorArgs, Decompress, ChunkReadResult } from "./types";
+import { BaseIterator } from "./BaseIterator";
+import { IteratorConstructorArgs, ChunkReadResult } from "./types";
 
-class ForwardIterator {
-  private connectionIds?: Set<number>;
-  private heap: Heap<{ time: Time; offset: number; chunkReadResult: ChunkReadResult }>;
-  private position: Time;
-  private decompress: Decompress;
-  private chunkInfos: ChunkInfo[];
-  private reader: IBagReader;
-
-  private cachedChunkReadResults = new Map<number, ChunkReadResult>();
-
+export class ForwardIterator extends BaseIterator {
   constructor(args: IteratorConstructorArgs) {
-    this.position = args.position;
-    this.decompress = args.decompress;
-    this.reader = args.reader;
-    this.chunkInfos = args.chunkInfos;
-
-    // if we want to filter by topic, make a list of connection ids to allow
-    if (args.topics) {
-      const topics = args.topics;
-      this.connectionIds = new Set();
-      for (const [id, connection] of args.connections) {
-        if (topics.includes(connection.topic)) {
-          this.connectionIds.add(id);
-        }
-      }
-    }
-
-    this.heap = new Heap((a, b) => {
+    // Sort by smallest timestamp first
+    super(args, (a, b) => {
       return compare(a.time, b.time);
     });
   }
 
-  // Load the next set of messages into the heap.
-  private async loadNext(): Promise<void> {
+  protected override async loadNext(): Promise<void> {
     let stamp = this.position;
 
     // These are all chunks that we can consider for iteration.
@@ -158,34 +131,4 @@ class ForwardIterator {
 
     this.cachedChunkReadResults = newCache;
   }
-
-  /**
-   * @returns An AsyncIterator for serialized message data from the forward iterator
-   */
-  [Symbol.asyncIterator](): AsyncIterator<MessageData> {
-    return {
-      next: async () => {
-        // there are no more items, try loading more
-        if (!this.heap.front()) {
-          await this.loadNext();
-        }
-
-        const item = this.heap.pop();
-        if (!item) {
-          return { done: true, value: undefined };
-        }
-
-        const chunk = item.chunkReadResult.chunk;
-        const read = this.reader.readRecordFromBuffer(
-          chunk.data!.subarray(item.offset),
-          chunk.dataOffset!,
-          MessageData,
-        );
-
-        return { done: false, value: read };
-      },
-    };
-  }
 }
-
-export { ForwardIterator };

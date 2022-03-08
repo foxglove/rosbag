@@ -1,44 +1,17 @@
-import { compare, Time, subtract as subTime } from "@foxglove/rostime";
-import Heap from "heap";
+import { compare, subtract as subTime } from "@foxglove/rostime";
 
-import { IBagReader } from "./IBagReader";
-import { ChunkInfo, MessageData } from "./record";
-import { IteratorConstructorArgs, Decompress, ChunkReadResult } from "./types";
+import { BaseIterator } from "./BaseIterator";
+import { IteratorConstructorArgs, ChunkReadResult } from "./types";
 
-class ReverseIterator {
-  private connectionIds?: Set<number>;
-  private heap: Heap<{ time: Time; offset: number; chunkReadResult: ChunkReadResult }>;
-  private position: Time;
-  private decompress: Decompress;
-  private chunkInfos: ChunkInfo[];
-  private reader: IBagReader;
-
-  private cachedChunkReadResults = new Map<number, ChunkReadResult>();
-
+export class ReverseIterator extends BaseIterator {
   constructor(args: IteratorConstructorArgs) {
-    this.position = args.position;
-    this.decompress = args.decompress;
-    this.reader = args.reader;
-    this.chunkInfos = args.chunkInfos;
-
-    // if we want to filter by topic, make a list of connection ids to allow
-    if (args.topics) {
-      const topics = args.topics;
-      this.connectionIds = new Set();
-      for (const [id, connection] of args.connections) {
-        if (topics.includes(connection.topic)) {
-          this.connectionIds.add(id);
-        }
-      }
-    }
-
     // Sort by largest timestamp first
-    this.heap = new Heap((a, b) => {
+    super(args, (a, b) => {
       return compare(b.time, a.time);
     });
   }
 
-  async loadNext(): Promise<void> {
+  protected override async loadNext(): Promise<void> {
     let stamp = this.position;
 
     // These are all chunks that we can consider for iteration.
@@ -68,14 +41,14 @@ class ReverseIterator {
       return compare(info.startTime, stamp) <= 0 && compare(stamp, info.endTime) <= 0;
     });
 
-    // No chunks contain our stamp, find the next chunk(s) prior to our stamp
+    // No chunks contain our stamp, find the next chunk(s) before our stamp
     if (chunkInfos.length === 0) {
       let newStamp = stamp;
       for (const candidateChunk of candidateChunkInfos) {
         // The first chunk we see sets the new stamp
         if (newStamp === stamp) {
           chunkInfos = [candidateChunk];
-          newStamp = candidateChunk.startTime;
+          newStamp = candidateChunk.endTime;
           continue;
         }
 
@@ -121,7 +94,7 @@ class ReverseIterator {
       // NOTE: end time is strictly less than stamp because end times equal to stamp
       // have already been considered and we should not include chunks twice.
       if (compare(info.endTime, start) >= 0 && compare(info.endTime, stamp) < 0) {
-        start = info.endTime;
+        chunkInfos.push(info);
       }
     }
 
@@ -158,31 +131,4 @@ class ReverseIterator {
 
     this.cachedChunkReadResults = newCache;
   }
-
-  [Symbol.asyncIterator](): AsyncIterator<MessageData> {
-    return {
-      next: async () => {
-        // there are no more items, load more
-        if (!this.heap.front()) {
-          await this.loadNext();
-        }
-
-        const item = this.heap.pop();
-        if (!item) {
-          return { done: true, value: undefined };
-        }
-
-        const chunk = item.chunkReadResult.chunk;
-        const read = this.reader.readRecordFromBuffer(
-          chunk.data!.subarray(item.offset),
-          chunk.dataOffset!,
-          MessageData,
-        );
-
-        return { done: false, value: read };
-      },
-    };
-  }
 }
-
-export { ReverseIterator };

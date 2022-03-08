@@ -1,9 +1,9 @@
-import { ForwardIterator } from "./ForwardIterator";
+import { ReverseIterator } from "./ReverseIterator";
 import { consumeMessages, FakeBagReader, generateFixtures } from "./test_support/iterator";
 
-describe("ForwardIterator", () => {
+describe("ReverseIterator", () => {
   it("should iterate empty bag", async () => {
-    const iterator = new ForwardIterator({
+    const iterator = new ReverseIterator({
       connections: new Map(),
       chunkInfos: [],
       decompress: {},
@@ -40,19 +40,19 @@ describe("ForwardIterator", () => {
       ],
     });
 
-    const iterator = new ForwardIterator({
+    const iterator = new ReverseIterator({
       connections,
       chunkInfos,
       decompress: {},
       reader,
-      position: { sec: 0, nsec: 0 },
+      position: { sec: 0, nsec: 1 },
     });
 
     const actualMessages = await consumeMessages(iterator);
-    expect(actualMessages).toEqual(expectedMessages);
+    expect(actualMessages).toEqual(expectedMessages.reverse());
   });
 
-  it("should ignore messages before position", async () => {
+  it("should ignore messages after position", async () => {
     const { connections, chunkInfos, reader, expectedMessages } = generateFixtures({
       chunks: [
         {
@@ -72,16 +72,18 @@ describe("ForwardIterator", () => {
       ],
     });
 
-    const iterator = new ForwardIterator({
+    const iterator = new ReverseIterator({
       connections,
       chunkInfos,
       decompress: {},
       reader,
-      position: { sec: 0, nsec: 1 },
+      position: { sec: 0, nsec: 0 },
     });
 
     const actualMessages = await consumeMessages(iterator);
-    expect(actualMessages).toEqual(expectedMessages.filter((msg) => msg.timestamp.nsec >= 1));
+    expect(actualMessages).toEqual(
+      expectedMessages.reverse().filter((msg) => msg.timestamp.nsec <= 0),
+    );
   });
 
   it("should read multiple overlapping chunks", async () => {
@@ -118,15 +120,63 @@ describe("ForwardIterator", () => {
       ],
     });
 
-    const iterator = new ForwardIterator({
+    const iterator = new ReverseIterator({
       connections,
       chunkInfos,
       decompress: {},
       reader,
-      position: { sec: 0, nsec: 0 },
+      position: { sec: 0, nsec: 1 },
     });
 
     const actualMessages = await consumeMessages(iterator);
-    expect(actualMessages).toEqual(expectedMessages);
+    expect(actualMessages).toEqual(
+      expectedMessages.sort((a, b) => b.timestamp.nsec - a.timestamp.nsec),
+    );
+  });
+
+  it("should include chunks which are within other chunk ranges", async () => {
+    const { connections, chunkInfos, reader, expectedMessages } = generateFixtures({
+      chunks: [
+        {
+          messages: [
+            {
+              connection: 0,
+              time: 2,
+              value: 1,
+            },
+            {
+              connection: 0,
+              time: 10,
+              value: 2,
+            },
+          ],
+        },
+        {
+          messages: [
+            {
+              connection: 0,
+              time: 3,
+              value: 3,
+            },
+            {
+              connection: 0,
+              time: 5,
+              value: 4,
+            },
+          ],
+        },
+      ],
+    });
+
+    const iterator = new ReverseIterator({
+      connections,
+      chunkInfos,
+      decompress: {},
+      reader,
+      position: { sec: 0, nsec: 12 },
+    });
+
+    const actualMessages = await consumeMessages(iterator);
+    expect(actualMessages).toEqual(expectedMessages.reverse());
   });
 });

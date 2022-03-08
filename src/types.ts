@@ -38,4 +38,20 @@ export type IteratorConstructorArgs = {
   decompress: Decompress;
 
   topics?: string[];
+  parse?: (data: Uint8Array, connection: Connection) => unknown;
+};
+
+export type MessageEvent = {
+  topic: string;
+  timestamp: Time;
+  data: Uint8Array;
+
+  message?: unknown;
+};
+
+export type MessageIterator = {
+  /**
+   * @returns An AsyncIterator for serialized message data from the forward iterator
+   */
+  [Symbol.asyncIterator](): AsyncIterator<MessageEvent>;
 };
