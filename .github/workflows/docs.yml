@@ -1,8 +1,15 @@
 name: Docs
 
+# on:
+#   push:
+#     branches: [main]
+
 on:
   push:
-    branches: [main]
+    branches: main
+    tags: v*
+  pull_request:
+    branches: "*"
 
 jobs:
   all:
@@ -10,9 +17,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@v3
         with:
           node-version: 16
           registry-url: https://registry.npmjs.org
@@ -21,13 +28,8 @@ jobs:
       - run: yarn install --frozen-lockfile
       - run: yarn docs
 
-      - name: Publish Docs
-        run: |
-          set -x
-          git config user.name "foxbot"
-          git config user.email "contact@foxglove.dev"
-          git add docs
-          git status
-          git commit -m "Docs"
-          git subtree split --prefix docs --branch gh-pages
-          git push --force origin gh-pages:gh-pages
+      - name: Deploy 🚀
+        uses: JamesIves/github-pages-deploy-action@v4.2.5
+        with:
+          branch: gh-pages
+          folder: docs
