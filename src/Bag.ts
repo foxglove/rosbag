@@ -27,7 +27,7 @@ export type ReadOptions = {
 
 export type BagOpt = {
   decompress?: Decompress;
-  noParse?: boolean;
+  parse?: boolean;
 };
 
 export type MessageIteratorOpt = {
@@ -82,8 +82,7 @@ export default class Bag {
     const topics = opt?.topics;
 
     let parse: IteratorConstructorArgs["parse"] | undefined;
-
-    if (this.bagOpt.noParse !== true) {
+    if (this.bagOpt.parse !== false) {
       parse = (data, connection) => {
         // lazily create a reader for this connection if it doesn't exist
         connection.reader ??= new MessageReader(
