@@ -23,10 +23,10 @@ function nmerge<T>(key: (a: T, b: T) => number, ...iterables: Array<Iterator<T>>
       if (heap.empty()) {
         return { done: true, value: undefined };
       }
-      const { i } = heap.front();
+      const { i } = heap.front()!;
       const next = iterables[i]!.next();
       if (next.done === true) {
-        return { value: heap.pop().value, done: false };
+        return { value: heap.pop()!.value, done: false };
       }
       return { value: heap.replace({ i, value: next.value }).value, done: false };
     },

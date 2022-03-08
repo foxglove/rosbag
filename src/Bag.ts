@@ -9,10 +9,12 @@ import { parse as parseMessageDefinition } from "@foxglove/rosmsg";
 import { MessageReader } from "@foxglove/rosmsg-serialization";
 import { compare, Time } from "@foxglove/rostime";
 
-import BagReader, { Decompress } from "./BagReader";
+import BagReader from "./BagReader";
+import { ForwardIterator } from "./ForwardIterator";
 import ReadResult from "./ReadResult";
+import { ReverseIterator } from "./ReverseIterator";
 import { BagHeader, ChunkInfo, Connection, MessageData } from "./record";
-import { Filelike } from "./types";
+import { Filelike, Decompress, MessageIterator, IteratorConstructorArgs } from "./types";
 
 export type ReadOptions = {
   decompress?: Decompress;
@@ -23,17 +25,31 @@ export type ReadOptions = {
   freeze?: boolean;
 };
 
+export type BagOpt = {
+  decompress?: Decompress;
+  parse?: boolean;
+};
+
+export type MessageIteratorOpt = {
+  start?: Time;
+  topics?: string[];
+  reverse?: boolean;
+};
+
 export default class Bag {
   reader: BagReader;
   header?: BagHeader;
   connections: Map<number, Connection>;
   chunkInfos: ChunkInfo[] = [];
-  startTime: Time | null | undefined;
-  endTime: Time | null | undefined;
+  startTime?: Time;
+  endTime?: Time;
 
-  constructor(filelike: Filelike) {
+  private bagOpt: BagOpt;
+
+  constructor(filelike: Filelike, opt?: BagOpt) {
     this.reader = new BagReader(filelike);
     this.connections = new Map<number, Connection>();
+    this.bagOpt = opt ?? {};
   }
 
   // if the bag is manually created with the constructor, you must call `await open()` on the bag
@@ -62,6 +78,58 @@ export default class Bag {
     }
   }
 
+  messageIterator(opt?: MessageIteratorOpt): MessageIterator {
+    const topics = opt?.topics;
+
+    let parse: IteratorConstructorArgs["parse"] | undefined;
+    if (this.bagOpt.parse !== false) {
+      parse = (data, connection) => {
+        // lazily create a reader for this connection if it doesn't exist
+        connection.reader ??= new MessageReader(
+          parseMessageDefinition(connection.messageDefinition),
+        );
+        return connection.reader.readMessage(data);
+      };
+    }
+
+    if (opt?.reverse === true) {
+      const position = opt?.start ?? this.endTime;
+      if (!position) {
+        throw new Error("no timestamp");
+      }
+
+      return new ReverseIterator({
+        position,
+        topics,
+        reader: this.reader,
+        connections: this.connections,
+        chunkInfos: this.chunkInfos,
+        decompress: this.bagOpt.decompress ?? {},
+        parse,
+      });
+    } else {
+      const position = opt?.start ?? this.startTime;
+      if (!position) {
+        throw new Error("no timestamp");
+      }
+
+      return new ForwardIterator({
+        position,
+        topics,
+        reader: this.reader,
+        chunkInfos: this.chunkInfos,
+        connections: this.connections,
+        decompress: this.bagOpt.decompress ?? {},
+        parse,
+      });
+    }
+  }
+
+  /**
+   * @deprecated Prefer the messageIterator method instead.
+   * @param opts
+   * @param callback
+   */
   async readMessages<T = unknown>(
     opts: ReadOptions,
     callback: (msg: ReadResult<T>) => void,

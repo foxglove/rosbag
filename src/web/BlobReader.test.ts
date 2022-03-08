@@ -16,6 +16,32 @@ global.TextEncoder = TextEncoder;
 // @ts-expect-error ignore type miss-match with util TextDecode and global one
 global.TextDecoder = TextDecoder;
 
+// Polyfill Blob.arrayBuffer since jsdom does not support it
+// https://github.com/jsdom/jsdom/issues/2555
+// https://developer.mozilla.org/en-US/docs/Web/API/Blob/arrayBuffer
+global.Blob.prototype.arrayBuffer = async function arrayBuffer(): Promise<ArrayBuffer> {
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = function () {
+      reader.onload = null;
+      reader.onerror = null;
+
+      if (reader.result == undefined || !(reader.result instanceof ArrayBuffer)) {
+        reject("Unsupported format for BlobReader");
+        return;
+      }
+
+      resolve(new Uint8Array(reader.result));
+    };
+    reader.onerror = function () {
+      reader.onload = null;
+      reader.onerror = null;
+      reject(reader.error ?? new Error("Unknown FileReader error"));
+    };
+    reader.readAsArrayBuffer(this);
+  });
+};
+
 describe("browser reader", () => {
   it("works in node", async () => {
     const buffer = new Blob([Uint8Array.from([0x00, 0x01, 0x02, 0x03, 0x04])]);

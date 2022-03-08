@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`rosbag - high-level api reads correct fields on /tf message 1`] = `
+exports[`Bag reads correct fields on /tf message 1`] = `
 Record {
   "transforms": Array [
     Object {

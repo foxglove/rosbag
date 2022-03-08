@@ -41,7 +41,7 @@ async function fullyReadBag<T>(name: string, opts?: ReadOptions): Promise<ReadRe
   return messages;
 }
 
-describe("basics", () => {
+describe("Bag", () => {
   it("handles empty and non-existent bags", async () => {
     await expect(open(getFixture("NON_EXISTENT_FILE"))).rejects.toThrow(
       "no such file or directory",
@@ -49,9 +49,7 @@ describe("basics", () => {
     await expect(open(getFixture("empty-file"))).rejects.toThrow("Attempted to read 13 bytes");
     await expect(fullyReadBag("no-messages")).resolves.toEqual([]);
   });
-});
 
-describe("rosbag - high-level api", () => {
   const testNumberOfMessages = (
     name: string,
     expected: number,

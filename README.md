@@ -30,8 +30,7 @@ async function logMessagesFromFooBar() {
 
   await bag.open();
 
-  // read all messages from both the '/foo' and '/bar' topics:
-  await bag.readMessages({ topics: ["/foo", "/bar"] }, (result) => {
+  for await (const result of bag.messageIterator({ topics: ["/foo", "/bar"] })) {
     // topic is the topic the data record was in
     // in this case it will be either '/foo' or '/bar'
     console.log(result.topic);
@@ -39,7 +38,7 @@ async function logMessagesFromFooBar() {
     // message is the parsed payload
     // this payload will likely differ based on the topic
     console.log(result.message);
-  });
+  }
 }
 
 logMessagesFromFooBar();
@@ -62,35 +61,13 @@ class Bag {
 
   // an array of ChunkInfos describing the chunks within the bag
   chunkInfos: Array<ChunkInfo>,
-
-  // call to consume from the bag - see 'Consuming messages from the bag instance' below
-  readMessages(options: BagOptions, cb: (result: ReadResult) => void) => Promise<void>
 }
 ```
-
-### Consuming messages from the bag instance
-
-`bag.readMessages` method returns a `Promise<void>` which resolves when the read operation is completed or rejects in the event of a read error. _During_ the read operation individual `ReadResult` objects are passed to the `callback` supplied to the `open` function. The `callback` may be called multiple times on the same tick as multiple data records can be encoded within a single binary chunk read within the bag reader.
 
 ### BagOptions
 
 ```typescript
-const bagOptions = {
-  // an optional array of topics used to filter down
-  // which data records will be read
-  // the default is all records on all topics
-  topics?: Array<string>,
-
-  // an optional Time instance used to filter data records
-  // to only those which start on or after the given start time
-  // the default is undefined which will apply no filter
-  startTime?: Time,
-
-  // an optional Time instance used to filter data records
-  // to only those which end on or before the given end time
-  // the default is undefined which will apply no filter
-  endTime?: Time,
-
+const options = {
   // decompression callbacks:
   // if your bag is compressed you can supply a callback to decompress it
   // based on the compression type. The callback should accept a buffer of compressed bytes
@@ -103,47 +80,50 @@ const bagOptions = {
     lz4?: (buffer: Uint8Array, uncompressedByteLength: number) => Uint8Array,
   },
 
-  // by default the individual parsed binary messages will be parsed based on their [ROS message definition](http://wiki.ros.org/msg)
-  // if you set noParse to true the read operation will skip the message parsing step
-  noParse?: boolean,
-
-  // Whether the resulting messages should be deeply frozen using Object.freeze(). (default: false)
-  // Useful to make sure your code or libraries doesn't accidentally mutate bag messages.
-  freeze?: boolean,
+  // Toggle the message deserialization behavior. By default, messages are deserialized into javascript objects. You can override this behavior by setting this to `false`.
+  parse?: boolean;
 }
 ```
 
-All options are optional and used to filter down from the sometimes enormous and varied data records in a rosbag. One could omit all options & filter the messages in memory within the `readMessages` callback; however, due to the rosbag format optimizations can be made during reading & parsing which will yield _significant_ performance and memory gains if you specify topics and/or date ranges ahead of time.
+### Consuming messages from the bag instance
 
-### ReadResult
+`bag.messageIterator` method returns an [Async Iterator](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/asyncIterator) for messages in the file. Each item is a `MessageEvent`.
+
+### IteratorOptions
 
 ```typescript
-const readResult {
+const options {
+  // an optional array of topics used to filter down
+  // which data records will be read
+  // the default is all records on all topics
+  topics?: Array<string>,
 
+  // an optional Time instance used to filter data records
+  // to only those which start on or after the given start time
+  // the default is undefined which will apply no filter
+  start?: Time,
+}
+```
+
+### MessageEvent
+
+```typescript
+const messageEvent {
   // the topic from which the current record was read
   topic: string,
 
-  // the parsed message contents as a JavaScript object
-  // this can contain nested complex types
-  // and arrays of complex & simple types
-  // this will be undefined if you supply { noParse: true } to `bag.readMessages`
-  message: { [string]: any },
-
-  // a Time instance - the receive time of the message
+  // the receive time of the message
   timestamp: Time
 
   // the raw buffer data from the data record
   // a node.js buffer in node & an array buffer in the browser
   data: Uint8Array,
 
-  // the offset of the chunk being read
-  // starts at 0 and eventually increments to totalChunks
-  // useful for computing read progress as a percentage
-  chunkOffset: number,
-
-  // the total chunks to eventually be consumed
-  // during the current read operation
-  totalChunks: number,
+  // the parsed message contents as a JavaScript object
+  // this can contain nested complex types
+  // and arrays of complex & simple types
+  // If parsing is disabled this field is set to `undefined`
+  message?: { [string]: unknown },
 }
 ```
 

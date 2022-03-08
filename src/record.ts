@@ -88,12 +88,12 @@ export class Connection extends Record {
   static opcode = 7;
   conn: number;
   topic: string;
-  type: string | null | undefined;
-  md5sum: string | null | undefined;
+  type?: string;
+  md5sum?: string;
   messageDefinition: string;
-  callerid: string | null | undefined;
-  latching: boolean | null | undefined;
-  reader: MessageReader | null | undefined;
+  callerid?: string;
+  latching?: boolean;
+  reader?: MessageReader;
 
   constructor(fields: { [key: string]: Uint8Array }) {
     super();
@@ -170,7 +170,7 @@ export class ChunkInfo extends Record {
   endTime: Time;
   count: number;
   connections: Array<{ conn: number; count: number }> = [];
-  nextChunk: ChunkInfo | null | undefined;
+  nextChunk?: ChunkInfo;
 
   constructor(fields: { [key: string]: Uint8Array }) {
     super();
