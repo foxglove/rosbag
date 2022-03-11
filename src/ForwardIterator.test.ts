@@ -131,7 +131,7 @@ describe("ForwardIterator", () => {
   });
 
   // Test when the there is a chunk with messages before and after the position BUT
-  // The messages we want are before the position.
+  // the messages we want are before our position in the chunk so we need the next chunk.
   //
   // [AABB][AABB]
   //     ^
