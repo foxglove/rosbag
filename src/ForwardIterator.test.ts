@@ -129,4 +129,61 @@ describe("ForwardIterator", () => {
     const actualMessages = await consumeMessages(iterator);
     expect(actualMessages).toEqual(expectedMessages);
   });
+
+  // Test when the there is a chunk with messages before and after the position BUT
+  // The messages we want are before the position.
+  //
+  // [AABB][AABB]
+  //     ^
+  it("should iterate when messages are before position and after", async () => {
+    const { connections, chunkInfos, reader, expectedMessages } = generateFixtures({
+      chunks: [
+        {
+          messages: [
+            {
+              connection: 0,
+              time: 0,
+              value: 1,
+            },
+            {
+              connection: 0,
+              time: 1,
+              value: 2,
+            },
+            {
+              connection: 1,
+              time: 2,
+              value: 3,
+            },
+            {
+              connection: 1,
+              time: 3,
+              value: 4,
+            },
+          ],
+        },
+        {
+          messages: [
+            {
+              connection: 0,
+              time: 4,
+              value: 5,
+            },
+          ],
+        },
+      ],
+    });
+
+    const iterator = new ForwardIterator({
+      connections,
+      chunkInfos,
+      decompress: {},
+      reader,
+      position: { sec: 0, nsec: 3 },
+      topics: ["/0"],
+    });
+
+    const actualMessages = await consumeMessages(iterator);
+    expect(actualMessages).toEqual(expectedMessages.filter((msg) => msg.timestamp.nsec >= 4));
+  });
 });

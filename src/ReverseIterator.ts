@@ -21,17 +21,6 @@ export class ReverseIterator extends BaseIterator {
       return compare(info.startTime, stamp) <= 0;
     });
 
-    // If we only want specific connections (i.e. topics), then we further filter
-    // to only the chunks with those topics
-    const connectionIds = this.connectionIds;
-    if (connectionIds) {
-      candidateChunkInfos = candidateChunkInfos.filter((info) => {
-        return info.connections.find((conn) => {
-          return connectionIds.has(conn.conn);
-        });
-      });
-    }
-
     if (candidateChunkInfos.length === 0) {
       return;
     }
