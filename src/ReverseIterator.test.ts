@@ -179,4 +179,78 @@ describe("ReverseIterator", () => {
     const actualMessages = await consumeMessages(iterator);
     expect(actualMessages).toEqual(expectedMessages.reverse());
   });
+
+  // Test when the there is a chunk with messages before and after the position BUT
+  // the messages we want are after our position in the chunk so we need the previous chunk.
+  //
+  // [AABB][AABB]
+  //        ^
+  it("should iterate when messages are before position and after", async () => {
+    const { connections, chunkInfos, reader, expectedMessages } = generateFixtures({
+      chunks: [
+        {
+          messages: [
+            {
+              connection: 0,
+              time: 0,
+              value: 1,
+            },
+            {
+              connection: 0,
+              time: 1,
+              value: 2,
+            },
+            {
+              connection: 1,
+              time: 2,
+              value: 3,
+            },
+            {
+              connection: 1,
+              time: 3,
+              value: 4,
+            },
+          ],
+        },
+        {
+          messages: [
+            {
+              connection: 0,
+              time: 4,
+              value: 5,
+            },
+            {
+              connection: 0,
+              time: 5,
+              value: 6,
+            },
+            {
+              connection: 1,
+              time: 6,
+              value: 7,
+            },
+            {
+              connection: 1,
+              time: 7,
+              value: 8,
+            },
+          ],
+        },
+      ],
+    });
+
+    const iterator = new ReverseIterator({
+      connections,
+      chunkInfos,
+      decompress: {},
+      reader,
+      position: { sec: 0, nsec: 5 },
+      topics: ["/1"],
+    });
+
+    const actualMessages = await consumeMessages(iterator);
+    expect(actualMessages).toEqual(
+      expectedMessages.reverse().filter((msg) => msg.timestamp.nsec <= 5 && msg.connectionId === 1),
+    );
+  });
 });

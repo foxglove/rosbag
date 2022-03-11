@@ -37,12 +37,20 @@ export abstract class BaseIterator implements MessageIterator {
     // if we want to filter by topic, make a list of connection ids to allow
     if (args.topics) {
       const topics = args.topics;
-      this.connectionIds = new Set();
+      const connectionIds = (this.connectionIds = new Set());
       for (const [id, connection] of args.connections) {
         if (topics.includes(connection.topic)) {
           this.connectionIds.add(id);
         }
       }
+
+      // When filtering to topics, limit the chunkInfos to the chunks containing
+      // the topic. We can do this filter once during construction
+      this.chunkInfos = args.chunkInfos.filter((info) => {
+        return info.connections.find((conn) => {
+          return connectionIds.has(conn.conn);
+        });
+      });
     }
   }
 
@@ -54,6 +62,15 @@ export abstract class BaseIterator implements MessageIterator {
    */
   async *[Symbol.asyncIterator](): AsyncIterator<MessageEvent> {
     while (true) {
+      if (!this.heap.front()) {
+        await this.loadNext();
+      }
+
+      // The first load may place us in the middle of a chunk. The topic messages we care
+      // about may already be "behind" us.
+      //
+      // When that happens, we end up with an empty heap and need to try loading one more time.
+      // This next load will access the next chunks with messages for our topic (or EOF).
       if (!this.heap.front()) {
         await this.loadNext();
       }

@@ -1,101 +1,81 @@
 import { compare, subtract as subTime } from "@foxglove/rostime";
+import Heap from "heap";
 
 import { BaseIterator } from "./BaseIterator";
+import { ChunkInfo } from "./record";
 import { IteratorConstructorArgs, ChunkReadResult } from "./types";
 
 export class ReverseIterator extends BaseIterator {
+  private remainingChunkInfos: (ChunkInfo | undefined)[];
+
   constructor(args: IteratorConstructorArgs) {
     // Sort by largest timestamp first
     super(args, (a, b) => {
       return compare(b.time, a.time);
     });
-  }
-
-  protected override async loadNext(): Promise<void> {
-    let stamp = this.position;
 
     // These are all chunks that we can consider for iteration.
     // Only consider chunks with a start before or equal to our position.
     // Chunks starting after our position are not part of reverse iteration
-    let candidateChunkInfos = this.chunkInfos.filter((info) => {
-      return compare(info.startTime, stamp) <= 0;
+    this.chunkInfos = this.chunkInfos.filter((info) => {
+      return compare(info.startTime, this.position) <= 0;
     });
 
-    // If we only want specific connections (i.e. topics), then we further filter
-    // to only the chunks with those topics
-    const connectionIds = this.connectionIds;
-    if (connectionIds) {
-      candidateChunkInfos = candidateChunkInfos.filter((info) => {
-        return info.connections.find((conn) => {
-          return connectionIds.has(conn.conn);
-        });
-      });
+    // The chunk info heap sorts chunk infos by decreasing end time
+    const chunkInfoHeap = new Heap<ChunkInfo>((a, b) => {
+      return compare(b.endTime, a.endTime);
+    });
+
+    for (const info of this.chunkInfos) {
+      chunkInfoHeap.insert(info);
     }
 
-    if (candidateChunkInfos.length === 0) {
+    this.remainingChunkInfos = [];
+    while (chunkInfoHeap.size() > 0) {
+      this.remainingChunkInfos.push(chunkInfoHeap.pop());
+    }
+  }
+
+  protected override async loadNext(): Promise<void> {
+    const stamp = this.position;
+
+    const firstChunkInfo = this.remainingChunkInfos[0];
+    if (!firstChunkInfo) {
       return;
     }
 
-    // Lookup chunks which contain our stamp inclusive of startTime and endTime
-    let chunkInfos = candidateChunkInfos.filter((info) => {
-      return compare(info.startTime, stamp) <= 0 && compare(stamp, info.endTime) <= 0;
-    });
+    this.remainingChunkInfos[0] = undefined;
 
-    // No chunks contain our stamp, find the next chunk(s) before our stamp
-    if (chunkInfos.length === 0) {
-      let newStamp = stamp;
-      for (const candidateChunk of candidateChunkInfos) {
-        // The first chunk we see sets the new stamp
-        if (newStamp === stamp) {
-          chunkInfos = [candidateChunk];
-          newStamp = candidateChunk.endTime;
-          continue;
-        }
+    let start = firstChunkInfo.startTime;
+    const chunksToLoad: ChunkInfo[] = [firstChunkInfo];
 
-        const compareResult = compare(candidateChunk.endTime, newStamp);
-
-        // If the chunk ends before our new stamp it is ignored since the existing
-        // chunks are closer to the stamp.
-        if (compareResult < 0) {
-          continue;
-        }
-        // If the chunk end is equal to the new stamp, add to chunk infos
-        else if (compareResult === 0) {
-          chunkInfos.push(candidateChunk);
-        }
-        // If the chunk end is after the new stamp it is closer to the stamp.
-        // Make that chunk the new stamp and selected chunk.
-        else if (compareResult > 0) {
-          chunkInfos = [candidateChunk];
-          newStamp = candidateChunk.endTime;
-        }
+    for (let idx = 1; idx < this.remainingChunkInfos.length; ++idx) {
+      const nextChunkInfo = this.remainingChunkInfos[idx];
+      if (!nextChunkInfo) {
+        continue;
       }
 
-      // update the stamp to our chunk start
-      stamp = newStamp;
+      // The chunk ends before our selected start, we end chunk selection
+      if (compare(nextChunkInfo.endTime, start) < 0) {
+        break;
+      }
+
+      // The chunk ends after our start so we will load it
+      chunksToLoad.push(nextChunkInfo);
+
+      // If the chunk starts after or at the start time, we have fully consumed it
+      const startCompare = compare(nextChunkInfo.startTime, start);
+      if (startCompare >= 0) {
+        this.remainingChunkInfos[idx] = undefined;
+      }
     }
+
+    // filter out undefined chunk infos
+    this.remainingChunkInfos = this.remainingChunkInfos.filter(Boolean);
 
     // End of file or no more candidates
-    if (chunkInfos.length === 0) {
+    if (chunksToLoad.length === 0) {
       return;
-    }
-
-    // Get the earliest start time across all the chunks we've selected
-    let start = chunkInfos[0]!.startTime;
-    for (const info of chunkInfos) {
-      if (compare(info.startTime, start) < 0) {
-        start = info.startTime;
-      }
-    }
-
-    // There might be some candidate chunks which end between our start and stamp.
-    // Since we read from start to stamp, we need to include those chunks as well.
-    for (const info of candidateChunkInfos) {
-      // NOTE: end time is strictly less than stamp because end times equal to stamp
-      // have already been considered and we should not include chunks twice.
-      if (compare(info.endTime, start) >= 0 && compare(info.endTime, stamp) < 0) {
-        chunkInfos.push(info);
-      }
     }
 
     // Subtract 1 nsec to make the next position 1 before
@@ -103,7 +83,7 @@ export class ReverseIterator extends BaseIterator {
 
     const heap = this.heap;
     const newCache = new Map<number, ChunkReadResult>();
-    for (const chunkInfo of chunkInfos) {
+    for (const chunkInfo of chunksToLoad) {
       let result = this.cachedChunkReadResults.get(chunkInfo.chunkPosition);
       if (!result) {
         result = await this.reader.readChunk(chunkInfo, this.decompress);

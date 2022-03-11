@@ -88,7 +88,7 @@ export class FakeBagReader implements IBagReader {
     const message = chunk.messages[buffer[0]!]!;
 
     const out = new cls({
-      conn: new Uint8Array([0, 0, 0, message.connection]),
+      conn: new Uint8Array([message.connection, 0, 0, 0]),
       time: new Uint8Array([0, 0, 0, 0, message.time, 0, 0, 0]),
     });
 
@@ -101,6 +101,8 @@ export function generateFixtures(input: FixtureInput): FixtureOutput {
   const connections: FixtureOutput["connections"] = new Map();
   const chunkInfos: EnhancedChunkInfo[] = [];
   const expectedMessages: MessageEvent[] = [];
+
+  const connCounts = new Map<number, { conn: number; count: number }>();
 
   for (const chunk of input.chunks) {
     let startNs = Infinity;
@@ -118,6 +120,15 @@ export function generateFixtures(input: FixtureInput): FixtureOutput {
         parseData: () => {},
       });
 
+      const existingEntry = connCounts.get(connId) ?? {
+        conn: connId,
+        count: 0,
+      };
+      connCounts.set(connId, {
+        conn: connId,
+        count: existingEntry.count + 1,
+      });
+
       expectedMessages.push({
         topic,
         timestamp: { sec: 0, nsec: msg.time },
@@ -133,7 +144,7 @@ export function generateFixtures(input: FixtureInput): FixtureOutput {
       startTime: { sec: 0, nsec: startNs },
       endTime: { sec: 0, nsec: endNs },
       count: 1,
-      connections: [],
+      connections: Array.from(connCounts.values()),
       parseData: () => {},
       messages: chunk.messages,
     });
