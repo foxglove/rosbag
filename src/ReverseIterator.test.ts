@@ -250,7 +250,7 @@ describe("ReverseIterator", () => {
 
     const actualMessages = await consumeMessages(iterator);
     expect(actualMessages).toEqual(
-      expectedMessages.reverse().filter((msg) => msg.timestamp.nsec <= 5 && msg.connectionId == 1),
+      expectedMessages.reverse().filter((msg) => msg.timestamp.nsec <= 5 && msg.connectionId === 1),
     );
   });
 });
