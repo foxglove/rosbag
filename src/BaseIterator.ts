@@ -33,6 +33,7 @@ export abstract class BaseIterator implements MessageIterator {
     this.reader = args.reader;
     this.chunkInfos = args.chunkInfos;
     this.heap = new Heap(compare);
+    this.parse = args.parse;
 
     // if we want to filter by topic, make a list of connection ids to allow
     if (args.topics) {
