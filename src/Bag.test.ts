@@ -24,8 +24,8 @@ function getFixture(filename = FILENAME): string {
   return `${__dirname}/../fixtures/${filename}.bag`;
 }
 
-async function open(filename: string): Promise<Bag> {
-  const bag = new Bag(new FileReader(filename));
+async function open(reader: FileReader): Promise<Bag> {
+  const bag = new Bag(reader);
   await bag.open();
   return bag;
 }
@@ -33,20 +33,24 @@ async function open(filename: string): Promise<Bag> {
 async function fullyReadBag<T>(name: string, opts?: ReadOptions): Promise<ReadResult<T>[]> {
   const filename = getFixture(name);
   expect(fs.existsSync(filename)).toBe(true);
-  const bag = await open(filename);
+  const reader = new FileReader(filename);
+  const bag = await open(reader);
   const messages: ReadResult<T>[] = [];
   await bag.readMessages<T>(opts ?? {}, (msg) => {
     messages.push(msg);
   });
+  await reader.close();
   return messages;
 }
 
 describe("Bag", () => {
   it("handles empty and non-existent bags", async () => {
-    await expect(open(getFixture("NON_EXISTENT_FILE"))).rejects.toThrow(
-      "no such file or directory",
-    );
-    await expect(open(getFixture("empty-file"))).rejects.toThrow("Attempted to read 13 bytes");
+    let reader = new FileReader(getFixture("NON_EXISTENT_FILE"));
+    await expect(open(reader)).rejects.toThrow("no such file or directory");
+    await reader.close();
+    reader = new FileReader(getFixture("empty-file"));
+    await expect(open(reader)).rejects.toThrow("Attempted to read 13 bytes");
+    await reader.close();
     await expect(fullyReadBag("no-messages")).resolves.toEqual([]);
   });
 
@@ -86,17 +90,21 @@ describe("Bag", () => {
 
   it("returns chunkOffset and totalChunks on read results", async () => {
     const filename = getFixture();
-    const bag = await open(filename);
+    const reader = new FileReader(filename);
+    const bag = await open(reader);
     const messages: ReadResult<unknown>[] = [];
     await bag.readMessages({}, (msg) => {
       messages.push(msg);
     });
     expect(messages[0]!.chunkOffset).toBe(0);
     expect(messages[0]!.totalChunks).toBe(1);
+    await reader.close();
   });
 
   it("reads topics", async () => {
-    const bag = await open(getFixture());
+    const filename = getFixture();
+    const reader = new FileReader(filename);
+    const bag = await open(reader);
     const topics = [...bag.connections.values()].map((connection) => connection.topic);
     expect(topics).toEqual([
       "/rosout",
@@ -112,6 +120,7 @@ describe("Bag", () => {
       "/turtle2/cmd_vel",
       "/turtle1/cmd_vel",
     ]);
+    await reader.close();
   });
 
   it("reads correct fields on /tf message", async () => {
@@ -120,7 +129,9 @@ describe("Bag", () => {
   });
 
   it("can read bag twice at once", async () => {
-    const bag = await open(getFixture());
+    const filename = getFixture();
+    const reader = new FileReader(filename);
+    const bag = await open(reader);
     const messages1: ReadResult<unknown>[] = [];
     const messages2: ReadResult<unknown>[] = [];
     const readPromise1 = bag.readMessages({ topics: ["/tf"] }, (msg) => {
@@ -131,6 +142,7 @@ describe("Bag", () => {
     });
     await Promise.all([readPromise1, readPromise2]);
     expect(messages1).toEqual(messages2);
+    await reader.close();
   });
 
   it("reads poses", async () => {
@@ -229,8 +241,11 @@ describe("Bag", () => {
 
   describe("compression", () => {
     it("throws if compression scheme is not registered", async () => {
-      const bag = await open(getFixture("example-bz2"));
+      const filename = getFixture("example-bz2");
+      const reader = new FileReader(filename);
+      const bag = await open(reader);
       await expect(async () => await bag.readMessages({}, () => {})).rejects.toThrow("compression");
+      await reader.close();
     });
 
     it("reads bz2 with supplied decompression callback", async () => {
