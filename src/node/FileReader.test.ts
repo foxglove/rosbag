@@ -19,6 +19,7 @@ describe("node entrypoint", () => {
       const buff = await reader.read(5, 10);
       expect(reader.size()).toBe(fs.statSync(fixture).size);
       expect(buff).toEqual(Uint8Array.from([54, 55, 56, 57, 48, 49, 50, 51, 52, 53]));
+      await reader.close();
     });
 
     it("should not clobber previous reads", async () => {
@@ -28,6 +29,7 @@ describe("node entrypoint", () => {
       const buff2 = await reader.read(5, 5);
       expect(buff2).toEqual(Uint8Array.from([54, 55, 56, 57, 48]));
       expect(buff).toEqual(Uint8Array.from([49, 50, 51, 52, 53]));
+      await reader.close();
     });
   });
 });
