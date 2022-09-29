@@ -242,7 +242,7 @@ export default class BagReader {
     const dataOffset = 4 + headerLength + 4;
     const dataLength = view.getInt32(4 + headerLength, LITTLE_ENDIAN);
 
-    const data = buffer.subarray(dataOffset, dataOffset + dataLength);
+    const data = buffer.slice(dataOffset, dataOffset + dataLength);
 
     record.parseData(data);
 
