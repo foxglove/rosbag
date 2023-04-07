@@ -242,7 +242,18 @@ export default class BagReader {
     const dataOffset = 4 + headerLength + 4;
     const dataLength = view.getInt32(4 + headerLength, LITTLE_ENDIAN);
 
-    const data = buffer.slice(dataOffset, dataOffset + dataLength);
+    // Take a data slice of the underlying array buffer so we don't hold on to the rest of the chunk
+    // when we store `data` on the record (happens in parseData)
+    //
+    // Note: using slice on the Uint8Array does not slice the underlying array buffer and can result
+    // in the `data` still having a reference to the entire underlying array buffer which we do not
+    // want.
+    const data = new Uint8Array(
+      buffer.buffer.slice(
+        buffer.byteOffset + dataOffset,
+        buffer.byteOffset + dataOffset + dataLength,
+      ),
+    );
 
     record.parseData(data);
 
