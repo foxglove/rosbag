@@ -186,4 +186,101 @@ describe("ForwardIterator", () => {
     const actualMessages = await consumeMessages(iterator);
     expect(actualMessages).toEqual(expectedMessages.filter((msg) => msg.timestamp.nsec >= 4));
   });
+
+  it("should iterate when messages are before position and after v1", async () => {
+    const { connections, chunkInfos, reader, expectedMessages } = generateFixtures({
+      chunks: [
+        {
+          messages: [
+            {
+              connection: 0,
+              time: 0,
+              value: 1,
+            },
+            {
+              connection: 1,
+              time: 2,
+              value: 1,
+            },
+            {
+              connection: 0,
+              time: 5,
+              value: 1,
+            },
+          ],
+        },
+        {
+          messages: [
+            {
+              connection: 0,
+              time: 1,
+              value: 3,
+            },
+            {
+              connection: 2,
+              time: 3,
+              value: 3,
+            },
+            {
+              connection: 0,
+              time: 6,
+              value: 3,
+            },
+          ],
+        },
+        {
+          messages: [
+            {
+              connection: 0,
+              time: 2,
+              value: 5,
+            },
+            {
+              connection: 1,
+              time: 4,
+              value: 5,
+            },
+            {
+              connection: 0,
+              time: 7,
+              value: 5,
+            },
+          ],
+        },
+        {
+          messages: [
+            {
+              connection: 0,
+              time: 8,
+              value: 5,
+            },
+            {
+              connection: 1,
+              time: 9,
+              value: 5,
+            },
+            {
+              connection: 0,
+              time: 10,
+              value: 5,
+            },
+          ],
+        },
+      ],
+    });
+
+    const iterator = new ForwardIterator({
+      connections,
+      chunkInfos,
+      decompress: {},
+      reader,
+      position: { sec: 0, nsec: 0 },
+      topics: ["/1", "/2"],
+    });
+
+    const actualMessages = await consumeMessages(iterator);
+    expect(actualMessages).toEqual(
+      expectedMessages.filter((msg) => ["/1", "/2"].includes(msg.topic)),
+    );
+  });
 });

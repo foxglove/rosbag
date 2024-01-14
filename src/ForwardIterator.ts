@@ -36,12 +36,12 @@ export class ForwardIterator extends BaseIterator {
     }
   }
 
-  protected override async loadNext(): Promise<void> {
+  protected override async loadNext(): Promise<boolean> {
     const stamp = this.position;
 
     const firstChunkInfo = this.remainingChunkInfos[0];
     if (!firstChunkInfo) {
-      return;
+      return true;
     }
 
     this.remainingChunkInfos[0] = undefined;
@@ -76,7 +76,7 @@ export class ForwardIterator extends BaseIterator {
 
     // End of file or no more candidates
     if (chunksToLoad.length === 0) {
-      return;
+      return true;
     }
 
     // Add 1 nsec to make end 1 past the end for the next read
@@ -111,5 +111,6 @@ export class ForwardIterator extends BaseIterator {
     }
 
     this.cachedChunkReadResults = newCache;
+    return false;
   }
 }

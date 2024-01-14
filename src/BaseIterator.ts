@@ -5,10 +5,10 @@ import { IBagReader } from "./IBagReader";
 import { ChunkInfo, Connection, MessageData } from "./record";
 import type {
   ChunkReadResult,
-  IteratorConstructorArgs,
-  MessageIterator,
-  MessageEvent,
   Decompress,
+  IteratorConstructorArgs,
+  MessageEvent,
+  MessageIterator,
 } from "./types";
 
 type HeapItem = { time: Time; offset: number; chunkReadResult: ChunkReadResult };
@@ -56,25 +56,32 @@ export abstract class BaseIterator implements MessageIterator {
   }
 
   // Load the next set of messages into the heap
-  protected abstract loadNext(): Promise<void>;
+  protected abstract loadNext(): Promise<boolean>;
 
   /**
    * @returns An AsyncIterator of MessageEvents
    */
   async *[Symbol.asyncIterator](): AsyncIterator<MessageEvent> {
     while (true) {
-      if (!this.heap.front()) {
-        await this.loadNext();
+      while (!this.heap.front()) {
+        const done = await this.loadNext();
+        if (done) {
+          return;
+        }
       }
 
-      // The first load may place us in the middle of a chunk. The topic messages we care
-      // about may already be "behind" us.
-      //
-      // When that happens, we end up with an empty heap and need to try loading one more time.
-      // This next load will access the next chunks with messages for our topic (or EOF).
-      if (!this.heap.front()) {
-        await this.loadNext();
-      }
+      // if (!this.heap.front()) {
+      //   await this.loadNext();
+      // }
+
+      // // The first load may place us in the middle of a chunk. The topic messages we care
+      // // about may already be "behind" us.
+      // //
+      // // When that happens, we end up with an empty heap and need to try loading one more time.
+      // // This next load will access the next chunks with messages for our topic (or EOF).
+      // if (!this.heap.front()) {
+      //   await this.loadNext();
+      // }
 
       const item = this.heap.pop();
       if (!item) {
