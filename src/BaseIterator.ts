@@ -55,7 +55,10 @@ export abstract class BaseIterator implements MessageIterator {
     }
   }
 
-  // Load the next set of messages into the heap
+  /**
+   * Load the next set of messages into the heap
+   * @returns False if no more messages can be loaded, True otherwise.
+   */
   protected abstract loadNext(): Promise<boolean>;
 
   /**
@@ -63,25 +66,13 @@ export abstract class BaseIterator implements MessageIterator {
    */
   async *[Symbol.asyncIterator](): AsyncIterator<MessageEvent> {
     while (true) {
+      // Keep on reading chunks into the heap until no more chunk can be loaded (EOF)
       while (!this.heap.front()) {
-        const done = await this.loadNext();
-        if (done) {
+        const chunkLoaded = await this.loadNext();
+        if (!chunkLoaded) {
           return;
         }
       }
-
-      // if (!this.heap.front()) {
-      //   await this.loadNext();
-      // }
-
-      // // The first load may place us in the middle of a chunk. The topic messages we care
-      // // about may already be "behind" us.
-      // //
-      // // When that happens, we end up with an empty heap and need to try loading one more time.
-      // // This next load will access the next chunks with messages for our topic (or EOF).
-      // if (!this.heap.front()) {
-      //   await this.loadNext();
-      // }
 
       const item = this.heap.pop();
       if (!item) {

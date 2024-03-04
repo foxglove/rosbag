@@ -41,7 +41,7 @@ export class ForwardIterator extends BaseIterator {
 
     const firstChunkInfo = this.remainingChunkInfos[0];
     if (!firstChunkInfo) {
-      return true;
+      return false;
     }
 
     this.remainingChunkInfos[0] = undefined;
@@ -76,7 +76,7 @@ export class ForwardIterator extends BaseIterator {
 
     // End of file or no more candidates
     if (chunksToLoad.length === 0) {
-      return true;
+      return false;
     }
 
     // Add 1 nsec to make end 1 past the end for the next read
@@ -111,6 +111,6 @@ export class ForwardIterator extends BaseIterator {
     }
 
     this.cachedChunkReadResults = newCache;
-    return false;
+    return true;
   }
 }

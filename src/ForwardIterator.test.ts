@@ -187,7 +187,14 @@ describe("ForwardIterator", () => {
     expect(actualMessages).toEqual(expectedMessages.filter((msg) => msg.timestamp.nsec >= 4));
   });
 
-  it("should iterate when messages are before position and after v1", async () => {
+  it("should iterate over messages in overlapping and non-overlapping chunks", async () => {
+    /* Chunk ordering (shown numbers are connection number, X-axis is time):
+     *
+     * 0 --------- 1 --------------- 0
+     *       0 --------- 2 --------------- 0
+     *             0 --------- 1 --------------- 0
+     *                                                 0 --- 1 --- 0
+     */
     const { connections, chunkInfos, reader, expectedMessages } = generateFixtures({
       chunks: [
         {
