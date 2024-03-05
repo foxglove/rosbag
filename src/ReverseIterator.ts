@@ -3,7 +3,7 @@ import Heap from "heap";
 
 import { BaseIterator } from "./BaseIterator";
 import { ChunkInfo } from "./record";
-import { IteratorConstructorArgs, ChunkReadResult } from "./types";
+import { ChunkReadResult, IteratorConstructorArgs } from "./types";
 
 export class ReverseIterator extends BaseIterator {
   private remainingChunkInfos: (ChunkInfo | undefined)[];
@@ -36,12 +36,12 @@ export class ReverseIterator extends BaseIterator {
     }
   }
 
-  protected override async loadNext(): Promise<void> {
+  protected override async loadNext(): Promise<boolean> {
     const stamp = this.position;
 
     const firstChunkInfo = this.remainingChunkInfos[0];
     if (!firstChunkInfo) {
-      return;
+      return false;
     }
 
     this.remainingChunkInfos[0] = undefined;
@@ -75,7 +75,7 @@ export class ReverseIterator extends BaseIterator {
 
     // End of file or no more candidates
     if (chunksToLoad.length === 0) {
-      return;
+      return false;
     }
 
     // Subtract 1 nsec to make the next position 1 before
@@ -110,5 +110,6 @@ export class ReverseIterator extends BaseIterator {
     }
 
     this.cachedChunkReadResults = newCache;
+    return true;
   }
 }
